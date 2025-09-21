@@ -112,7 +112,7 @@ export default function RootLayout({
               <Link href="/" className="inline-flex items-center gap-3">
                 <Image src="/favicon.svg" alt="Font 4 Tattoo" width={48} height={48} priority />
                 <span className="text-2xl md:text-3xl font-bold tracking-tight">Font 4 Tattoo</span>
-                <span className="text-sm md:text-base font-medium text-neutral-500 md:text-neutral-600 tracking-wide italic">- selection by Mike Biscuit and Bobby's Tattoo</span>
+                <span className="text-sm md:text-base font-medium text-neutral-500 md:text-neutral-600 tracking-wide italic">- selection by Mike Biscuit and Bobby&apos;s Tattoo</span>
               </Link>
               <p className="text-xs md:text-sm text-neutral-600 text-center">
                 Anteprima in tempo reale · Font eleganti e sottili per tatuaggi · Fine line tattoo
