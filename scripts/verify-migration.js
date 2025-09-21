@@ -1,7 +1,13 @@
 const { MongoClient } = require('mongodb');
+require('dotenv').config({ path: '../.env.local' });
 
-const MONGODB_URI = 'mongodb+srv://niccangiano_db_user:gdAlX5ewSGJM8fbZ@fonts4tattooing.ixpevsz.mongodb.net/?retryWrites=true&w=majority&appName=Fonts4tattooing';
-const DB_NAME = 'fonts4tattooing';
+const MONGODB_URI = process.env.MONGODB_URI;
+const DB_NAME = process.env.MONGODB_DB_NAME || 'fonts4tattooing';
+
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI non trovato nelle variabili d\'ambiente');
+  process.exit(1);
+}
 
 async function verifyMigration() {
   const client = new MongoClient(MONGODB_URI);

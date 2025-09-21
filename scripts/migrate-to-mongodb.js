@@ -1,10 +1,16 @@
 const { MongoClient } = require('mongodb');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: '../.env.local' });
 
-// Configura la tua connection string
-const MONGODB_URI = 'mongodb+srv://niccangiano_db_user:gdAlX5ewSGJM8fbZ@fonts4tattooing.ixpevsz.mongodb.net/?retryWrites=true&w=majority&appName=Fonts4tattooing';
-const DB_NAME = 'fonts4tattooing';
+// Usa le variabili d'ambiente invece di credenziali hardcoded
+const MONGODB_URI = process.env.MONGODB_URI;
+const DB_NAME = process.env.MONGODB_DB_NAME || 'fonts4tattooing';
+
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI non trovato nelle variabili d\'ambiente');
+  process.exit(1);
+}
 
 async function migrateFonts() {
   const client = new MongoClient(MONGODB_URI);
