@@ -124,7 +124,7 @@ export function EditorToolbar({ value, onChange, disabled, supports }: ToolbarPr
           <select
             className="border border-neutral-200 rounded-md bg-white px-3 py-2 text-sm flex-1 max-w-[150px]"
             value={curveMode}
-            onChange={(e) => onChange({ curveMode: e.target.value as any })}
+            onChange={(e) => onChange({ curveMode: e.target.value as "none" | "arc" | "circle" })}
             disabled={disabled}
           >
             <option value="none">Nessuna</option>

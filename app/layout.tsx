@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Script from "next/script";
 import Image from "next/image";
+import Link from "next/link";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -105,11 +106,11 @@ export default function RootLayout({
         <header className="border-b border-neutral-200">
           <div className="max-w-6xl mx-auto px-4 py-5">
             <div className="flex flex-col items-center gap-1">
-              <a href="/" className="inline-flex items-center gap-3">
+              <Link href="/" className="inline-flex items-center gap-3">
                 <Image src="/favicon.svg" alt="Font 4 Tattoo" width={48} height={48} priority />
                 <span className="text-2xl md:text-3xl font-bold tracking-tight">Font 4 Tattoo</span>
                 <span className="text-sm md:text-base font-medium text-neutral-500 md:text-neutral-600 tracking-wide italic">- selection by Mike Biscuit</span>
-              </a>
+              </Link>
               <p className="text-xs md:text-sm text-neutral-600 text-center">
                 Anteprima in tempo reale · Font eleganti e sottili per tatuaggi · Fine line tattoo
               </p>

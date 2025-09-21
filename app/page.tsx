@@ -41,13 +41,7 @@ export default function Home() {
   // categories
   const [categories, setCategories] = React.useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = React.useState<string>("Tutti");
-  const popularCategories = React.useMemo(() => [
-    "Corsivo",
-    "Stampatello",
-    "Serif",
-    "Sans Serif",
-    "Gotico",
-  ], []);
+  // (rimosso) const popularCategories = React.useMemo(() => [...], []);
 
   // preferiti
   const [favorites, setFavorites] = React.useState<Set<string>>(new Set());

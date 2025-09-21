@@ -9,6 +9,21 @@ export const runtime = "nodejs";
 const dataPath = path.join(process.cwd(), "data", "fonts.json");
 const fontsDir = path.join(process.cwd(), "public", "fonts");
 
+type FontData = {
+  id: string;
+  name: string;
+  category: string;
+  file: string;
+  isPremium?: boolean;
+  visible?: boolean;
+  supports?: { bold?: boolean; italic?: boolean };
+};
+
+type DatabaseSchema = {
+  categories: string[];
+  fonts: FontData[];
+};
+
 export async function POST(req: Request) {
   const cookieStore = await cookies();
   const cookie = cookieStore.get("font4tat_admin");
@@ -38,14 +53,21 @@ export async function POST(req: Request) {
   await fs.writeFile(filePath, Buffer.from(arrayBuffer));
 
   // Update JSON database
-  let db = { categories: [], fonts: [] as any[] } as any;
+  let db: DatabaseSchema = { categories: [], fonts: [] };
   try {
     const content = await fs.readFile(dataPath, "utf-8");
-    db = JSON.parse(content);
+    db = JSON.parse(content) as DatabaseSchema;
   } catch {}
 
   if (!db.categories.includes(category)) db.categories.push(category);
-  db.fonts.push({ id, name, category, file: `/fonts/${fileName}`, isPremium, supports: { bold: supportsBold, italic: supportsItalic } });
+  db.fonts.push({
+    id,
+    name,
+    category,
+    file: `/fonts/${fileName}`,
+    isPremium,
+    supports: { bold: supportsBold, italic: supportsItalic },
+  });
   await fs.writeFile(dataPath, JSON.stringify(db, null, 2), "utf-8");
 
   return NextResponse.json({ ok: true });

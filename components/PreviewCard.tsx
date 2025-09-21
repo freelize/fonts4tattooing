@@ -28,12 +28,15 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
     curveMode: "none" as "none" | "arc" | "circle",
     circleRadius: 220,
     circleStart: 0,
-     fontSizePx: undefined as number | undefined,
+    fontSizePx: undefined as number | undefined,
   });
   const colorTouchedRef = React.useRef(false);
   const [toolsOpen, setToolsOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const uid = React.useId();
+
+  // Grandezza effettiva: locale se impostata, altrimenti globale
+  const fs = settings.fontSizePx ?? base;
 
   React.useEffect(() => {
     // Update color from global only if user hasn't changed it locally
@@ -45,19 +48,26 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
   const onDownload = async () => {
     if (premium) return;
     if (!ref.current) return;
+    
     try {
       const weight = settings.bold ? 700 : 400;
       const italic = settings.italic ? "italic " : "";
       const sizePx = Math.max(1, Math.round(fs));
       const family = `"${fontCssFamily}"`;
-      if ((document as any).fonts?.load) {
-        try { await (document as any).fonts.load(`${italic}${weight} ${sizePx}px ${family}`); } catch {}
-        try { await (document as any).fonts.ready; } catch {}
+
+      type DocWithFonts = Document & { fonts?: { load: (font: string) => Promise<void>; ready: Promise<void> } };
+      const doc = document as DocWithFonts;
+
+      if (doc.fonts?.load) {
+        try { await doc.fonts.load(`${italic}${weight} ${sizePx}px ${family}`); } catch {}
+        try { await doc.fonts.ready; } catch {}
       }
     } catch {}
 
     // Determine explicit bitmap size to keep centering consistent
     const node = ref.current;
+    if (!node) return;
+    
     const rect = node.getBoundingClientRect();
     const width = Math.max(1, Math.round(rect.width));
     const height = Math.max(1, Math.round(rect.height));
@@ -77,9 +87,6 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
     link.href = dataUrl;
     link.click();
   };
-
-  // Grandezza effettiva: locale se impostata, altrimenti globale
-  const fs = settings.fontSizePx ?? base;
 
   const baseStyle: React.CSSProperties = {
     fontFamily: fontCssFamily,

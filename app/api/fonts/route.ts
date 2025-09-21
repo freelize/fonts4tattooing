@@ -10,7 +10,7 @@ export async function GET() {
     const content = await fs.readFile(dataPath, "utf-8");
     const json = JSON.parse(content);
     return NextResponse.json(json, { status: 200 });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ categories: [], fonts: [] }, { status: 200 });
   }
 }

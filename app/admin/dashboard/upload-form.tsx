@@ -3,6 +3,17 @@
 import React from "react";
 import { useFontLoader } from "@/hooks/useFontLoader";
 
+// Definizione del tipo FontListItem
+type FontListItem = {
+  id: string;
+  name: string;
+  category: string;
+  file: string;
+  isPremium: boolean;
+  supports?: { bold?: boolean; italic?: boolean };
+  visible?: boolean;
+};
+
 export default function UploadForm() {
   const [name, setName] = React.useState("");
   const [category, setCategory] = React.useState("");
@@ -13,15 +24,7 @@ export default function UploadForm() {
   const [status, setStatus] = React.useState<string | null>(null);
 
   // Fonts list state
-  const [fonts, setFonts] = React.useState<Array<{
-    id: string;
-    name: string;
-    category: string;
-    file: string;
-    isPremium: boolean;
-    supports?: { bold?: boolean; italic?: boolean };
-    visible?: boolean;
-  }>>([]);
+  const [fonts, setFonts] = React.useState<FontListItem[]>([]);
   const [loadingFonts, setLoadingFonts] = React.useState<boolean>(false);
   const [fontsError, setFontsError] = React.useState<string | null>(null);
   const [categories, setCategories] = React.useState<string[]>([]);
@@ -37,21 +40,26 @@ export default function UploadForm() {
 
   // Conferma modale
   const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const [confirmAction, setConfirmAction] = React.useState<null | { type: "delete_one" | "delete_bulk"; payload?: any }>(null);
+  const [confirmAction, setConfirmAction] = React.useState<
+    null | { type: "delete_one" | "delete_bulk"; payload?: { id: string; name?: string } }
+  >(null);
 
   const fetchFontsList = React.useCallback(async () => {
     setLoadingFonts(true);
     setFontsError(null);
     try {
       const res = await fetch("/api/fonts", { cache: "no-store" });
-      const data = (await res.json()) as { categories?: string[]; fonts?: any[] };
+      const data = (await res.json()) as { categories?: string[]; fonts?: FontListItem[] };
       setFonts(Array.isArray(data.fonts) ? data.fonts : []);
-      const cats: string[] = Array.isArray(data.categories) && data.categories.length
-        ? data.categories
-        : Array.from(new Set(((Array.isArray(data.fonts) ? data.fonts : []) as any[]).map((f: any) => String(f.category || "")))).filter(Boolean);
+      const cats: string[] =
+        Array.isArray(data.categories) && data.categories.length
+          ? data.categories
+          : Array.from(
+              new Set(((Array.isArray(data.fonts) ? data.fonts : []) as Array<{ category: string }>).map((f) => String(f.category || ""))))
+              .filter(Boolean);
       setCategories(cats);
       setSelected(new Set());
-    } catch (e) {
+    } catch {
       setFontsError("Impossibile caricare l'elenco dei font");
     } finally {
       setLoadingFonts(false);
@@ -109,7 +117,7 @@ export default function UploadForm() {
     if (res.ok) fetchFontsList();
   }
 
-  async function toggleVisibility(f: any) {
+  async function toggleVisibility(f: { id: string; visible?: boolean }) {
     const res = await fetch(`/api/fonts/${f.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -312,12 +320,18 @@ export default function UploadForm() {
             <label className="text-xs text-neutral-600">Categoria</label>
             <select className="block rounded-md border border-neutral-200 px-2 py-1" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
               <option value="Tutte">Tutte</option>
-              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
           </div>
           <div>
             <label className="text-xs text-neutral-600">Visibilità</label>
-            <select className="block rounded-md border border-neutral-200 px-2 py-1" value={filterVisibility} onChange={(e) => setFilterVisibility(e.target.value as any)}>
+            <select
+              className="block rounded-md border border-neutral-200 px-2 py-1"
+              value={filterVisibility}
+              onChange={(e) => setFilterVisibility(e.target.value as "all" | "visible" | "hidden")}
+            >
               <option value="all">Tutti</option>
               <option value="visible">Visibili</option>
               <option value="hidden">Nascosti</option>
@@ -325,7 +339,11 @@ export default function UploadForm() {
           </div>
           <div>
             <label className="text-xs text-neutral-600">Premium</label>
-            <select className="block rounded-md border border-neutral-200 px-2 py-1" value={filterPremium} onChange={(e) => setFilterPremium(e.target.value as any)}>
+            <select
+              className="block rounded-md border border-neutral-200 px-2 py-1"
+              value={filterPremium}
+              onChange={(e) => setFilterPremium(e.target.value as "all" | "yes" | "no")}
+            >
               <option value="all">Tutti</option>
               <option value="yes">Premium</option>
               <option value="no">Non premium</option>
@@ -333,7 +351,13 @@ export default function UploadForm() {
           </div>
           <div>
             <label className="text-xs text-neutral-600">Ordina per</label>
-            <select className="block rounded-md border border-neutral-200 px-2 py-1" value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
+            <select
+              className="block rounded-md border border-neutral-200 px-2 py-1"
+              value={sortBy}
+              onChange={(e) =>
+                setSortBy(e.target.value as "name_asc" | "name_desc" | "category_asc" | "category_desc")
+              }
+            >
               <option value="name_asc">Nome A→Z</option>
               <option value="name_desc">Nome Z→A</option>
               <option value="category_asc">Categoria A→Z</option>
@@ -383,14 +407,16 @@ export default function UploadForm() {
       {confirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-lg">
-            <h3 className="text-base font-semibold mb-2">Confermi l'eliminazione?</h3>
+            <h3 className="text-base font-semibold mb-2">Confermi l&apos;eliminazione?</h3>
             <p className="text-sm text-neutral-600 mb-4">
-              {confirmAction?.type === "delete_one" ? `Il font "${confirmAction?.payload?.name}" verrà eliminato definitivamente.` : `Verranno eliminati ${selected.size} font. L'operazione è irreversibile.`}
+              {confirmAction?.type === "delete_one"
+                ? `Il font "${confirmAction?.payload?.name}" verrà eliminato definitivamente.`
+                : `Verranno eliminati ${selected.size} font. L&apos;operazione è irreversibile.`}
             </p>
             <div className="flex justify-end gap-2">
               <button onClick={() => { setConfirmOpen(false); setConfirmAction(null); }} className="rounded border px-3 py-1 text-sm">Annulla</button>
               <button onClick={async () => {
-                if (confirmAction?.type === "delete_one") {
+                if (confirmAction?.type === "delete_one" && confirmAction.payload?.id) {
                   await performDeleteFont(confirmAction.payload.id);
                 } else if (confirmAction?.type === "delete_bulk") {
                   await performBulkDelete();

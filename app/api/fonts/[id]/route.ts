@@ -7,6 +7,21 @@ import path from "node:path";
 const dataPath = path.join(process.cwd(), "data", "fonts.json");
 const publicDir = path.join(process.cwd(), "public");
 
+type FontData = {
+  id: string;
+  name: string;
+  category: string;
+  file: string;
+  isPremium?: boolean;
+  visible?: boolean;
+  supports?: { bold?: boolean; italic?: boolean };
+};
+
+type DatabaseSchema = {
+  categories: string[];
+  fonts: FontData[];
+};
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const cookieStore = await cookies();
   const cookie = cookieStore.get("font4tat_admin");
@@ -15,26 +30,26 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const id = params.id;
-  let payload: any = {};
+  let payload: Partial<FontData> & { supportsBold?: boolean; supportsItalic?: boolean } = {};
   try {
     payload = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  let db: any = { categories: [], fonts: [] };
+  let db: DatabaseSchema = { categories: [], fonts: [] };
   try {
     const content = await fs.readFile(dataPath, "utf-8");
-    db = JSON.parse(content);
+    db = JSON.parse(content) as DatabaseSchema;
   } catch {
     return NextResponse.json({ error: "Database not found" }, { status: 500 });
   }
 
-  const idx = db.fonts.findIndex((f: any) => f.id === id);
+  const idx = db.fonts.findIndex((f) => f.id === id);
   if (idx === -1) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const current = db.fonts[idx];
-  const updated = { ...current } as any;
+  const updated: FontData = { ...current };
 
   if (typeof payload.name === "string") updated.name = payload.name;
   if (typeof payload.category === "string") {
@@ -61,15 +76,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   }
   const id = params.id;
 
-  let db: any = { categories: [], fonts: [] };
+  let db: DatabaseSchema = { categories: [], fonts: [] };
   try {
     const content = await fs.readFile(dataPath, "utf-8");
-    db = JSON.parse(content);
+    db = JSON.parse(content) as DatabaseSchema;
   } catch {
     return NextResponse.json({ error: "Database not found" }, { status: 500 });
   }
 
-  const idx = db.fonts.findIndex((f: any) => f.id === id);
+  const idx = db.fonts.findIndex((f) => f.id === id);
   if (idx === -1) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const font = db.fonts[idx];
