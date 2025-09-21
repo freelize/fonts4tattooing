@@ -8,7 +8,7 @@ const dataPath = path.join(process.cwd(), "data", "fonts.json");
 interface Font {
   name: string;
   sortOrder?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export async function GET() {
