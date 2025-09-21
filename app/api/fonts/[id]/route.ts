@@ -22,14 +22,14 @@ type DatabaseSchema = {
   fonts: FontData[];
 };
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const cookieStore = await cookies();
   const cookie = cookieStore.get("font4tat_admin");
   if (!cookie) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const id = params.id;
+  const { id } = await params;
   let payload: Partial<FontData> & { supportsBold?: boolean; supportsItalic?: boolean } = {};
   try {
     payload = await req.json();
@@ -68,13 +68,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ font: updated }, { status: 200 });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const cookieStore = await cookies();
   const cookie = cookieStore.get("font4tat_admin");
   if (!cookie) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const id = params.id;
+  const { id } = await params;
 
   let db: DatabaseSchema = { categories: [], fonts: [] };
   try {
@@ -93,7 +93,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
 
   // Try to delete the file from public
   try {
-    const rel = String(font.file || '').replace(/^\/+/, "");
+    const rel = String(font.file || '').replace(/^/+/, "");
     const fp = path.join(publicDir, rel);
     await fs.unlink(fp);
   } catch {
