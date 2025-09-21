@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import clientPromise from '@/lib/mongodb';
 
-interface Font {
-  id: string;
-  name: string;
-  category: string;
-  file: string;
-  isPremium?: boolean;
-  visible?: boolean;
-  supports?: { bold?: boolean; italic?: boolean };
-  sortOrder?: number;
-}
+// Rimuovi questa interfaccia non utilizzata
+// interface Font {
+//   id: string;
+//   name: string;
+//   category: string;
+//   file: string;
+//   isPremium?: boolean;
+//   visible?: boolean;
+//   supports?: { bold?: boolean; italic?: boolean };
+//   sortOrder?: number;
+// }
 
 export async function GET() {
   try {
