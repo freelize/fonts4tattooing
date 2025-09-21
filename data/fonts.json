@@ -1,0 +1,56 @@
+{
+  "categories": [
+    "Serif",
+    "Sans-Serif",
+    "Corsivo",
+    "Stampatello",
+    "Gotico"
+  ],
+  "fonts": [
+    {
+      "id": "5741feb0-c4c6-4384-af7c-cc9500d4512f",
+      "name": "Elegante",
+      "category": "Corsivo",
+      "file": "/fonts/5741feb0-c4c6-4384-af7c-cc9500d4512f.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "1fc19a2e-6b7b-482e-aedf-46dc14036bc8",
+      "name": "Cerimony",
+      "category": "Corsivo",
+      "file": "/fonts/1fc19a2e-6b7b-482e-aedf-46dc14036bc8.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "b08db6bf-6394-4347-b440-7d8b59adb5d2",
+      "name": "Exmouth",
+      "category": "Corsivo",
+      "file": "/fonts/b08db6bf-6394-4347-b440-7d8b59adb5d2.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "05f5de76-96eb-44c9-b685-a58a47c20226",
+      "name": "Floreal",
+      "category": "Corsivo",
+      "file": "/fonts/05f5de76-96eb-44c9-b685-a58a47c20226.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      },
+      "visible": false
+    }
+  ]
+}
