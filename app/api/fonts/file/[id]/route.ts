@@ -3,10 +3,11 @@ import clientPromise from '@/lib/mongodb';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    // Ora params è una Promise, quindi dobbiamo fare await
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json({ error: 'Missing font ID' }, { status: 400 });

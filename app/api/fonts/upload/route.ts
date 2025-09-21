@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     await db.collection('fonts').insertOne(newFontDocument);
 
     // Rimuovi i dati binari dalla risposta per efficienza
-    // Usando `_` si comunica a ESLint che la variabile è intenzionalmente non usata
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { fileData: _, ...fontForResponse } = newFontDocument;
 
     return NextResponse.json({ ok: true, font: fontForResponse });
