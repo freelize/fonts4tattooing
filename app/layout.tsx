@@ -40,9 +40,8 @@ export const metadata: Metadata = {
   ],
   icons: {
     icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon.ico" },
-      // Rimuovi questa linea per evitare il preload automatico
-      // { url: "/favicon.svg", type: "image/svg+xml" },
     ],
     apple: [{ url: "/apple-touch-icon.png" }],
   },
@@ -69,7 +68,7 @@ export const metadata: Metadata = {
     description:
       "Anteprima font per tatuaggi: fine line, eleganti, premium. Prova il testo in tempo reale.",
     images: [
-      { url: "/icon-512x512.png", width: 512, height: 512, alt: "Font 4 Tattoo" },
+      { url: "/og-image.png", width: 1200, height: 630, alt: "Font 4 Tattoo" },
     ],
     locale: "it_IT",
   },
@@ -78,7 +77,7 @@ export const metadata: Metadata = {
     title: "Font 4 Tattoo — Fineline Font for Tattoo",
     description:
       "Anteprima font per tatuaggi: fine line, eleganti, premium. Prova il testo in tempo reale.",
-    images: ["/icon-512x512.png"],
+    images: ["/og-image.png"],
   },
   category: "tattoo",
 };
