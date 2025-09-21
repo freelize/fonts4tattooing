@@ -93,7 +93,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   // Try to delete the file from public
   try {
-    const rel = String(font.file || '').replace(/^/+/, "");
+    const rel = String(font.file || '').replace(/^\/+/, "");
     const fp = path.join(publicDir, rel);
     await fs.unlink(fp);
   } catch {
