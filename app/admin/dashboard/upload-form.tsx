@@ -12,28 +12,31 @@ type FontListItem = {
   isPremium: boolean;
   supports?: { bold?: boolean; italic?: boolean };
   visible?: boolean;
+  sortOrder?: number;
 };
 
 export default function UploadForm() {
   const [name, setName] = React.useState("");
   const [category, setCategory] = React.useState("");
+  const [showCustomCategory, setShowCustomCategory] = React.useState(false);
   const [isPremium, setIsPremium] = React.useState(false);
   const [supportsBold, setSupportsBold] = React.useState<boolean>(true);
   const [supportsItalic, setSupportsItalic] = React.useState<boolean>(true);
   const [file, setFile] = React.useState<File | null>(null);
   const [status, setStatus] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  // Fonts list state
+  // Stati per la gestione dei font
   const [fonts, setFonts] = React.useState<FontListItem[]>([]);
+  const [categories, setCategories] = React.useState<string[]>([]);
   const [loadingFonts, setLoadingFonts] = React.useState<boolean>(false);
   const [fontsError, setFontsError] = React.useState<string | null>(null);
-  const [categories, setCategories] = React.useState<string[]>([]);
 
   // Filtri e ordinamento
   const [filterCategory, setFilterCategory] = React.useState<string>("Tutte");
   const [filterVisibility, setFilterVisibility] = React.useState<"all" | "visible" | "hidden">("all");
   const [filterPremium, setFilterPremium] = React.useState<"all" | "yes" | "no">("all");
-  const [sortBy, setSortBy] = React.useState<"name_asc" | "name_desc" | "category_asc" | "category_desc">("name_asc");
+  const [sortBy, setSortBy] = React.useState<"sortOrder" | "name_asc" | "name_desc" | "category_asc" | "category_desc">("sortOrder");
 
   // Selezione multipla
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
@@ -48,7 +51,16 @@ export default function UploadForm() {
     setLoadingFonts(true);
     setFontsError(null);
     try {
-      const res = await fetch("/api/fonts", { cache: "no-store" });
+      // Aggiungi un timestamp per evitare il caching
+      const timestamp = new Date().getTime();
+      const res = await fetch(`/api/fonts?_t=${timestamp}`, { 
+        cache: "no-store",
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       const data = (await res.json()) as { categories?: string[]; fonts?: FontListItem[] };
       setFonts(Array.isArray(data.fonts) ? data.fonts : []);
       const cats: string[] =
@@ -126,27 +138,242 @@ export default function UploadForm() {
     if (res.ok) fetchFontsList();
   }
 
+  // Aggiungi stato per drag and drop
+  const [draggedItem, setDraggedItem] = React.useState<string | null>(null);
+  const [reorderMode, setReorderMode] = React.useState<boolean>(false);
+  const [draggedOverItem, setDraggedOverItem] = React.useState<string | null>(null);
+  const [isDragging, setIsDragging] = React.useState<boolean>(false);
+  const [dragStartPos, setDragStartPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const dragTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const draggedElementRef = React.useRef<HTMLElement | null>(null);
+
+  // Prima definisci filteredFonts
   const filteredFonts = React.useMemo(() => {
     let list = [...fonts];
-    // Visibilità
+    
+    // Applica filtri
     if (filterVisibility === "visible") list = list.filter((f) => f.visible !== false);
     if (filterVisibility === "hidden") list = list.filter((f) => f.visible === false);
-    // Categoria
     if (filterCategory !== "Tutte") list = list.filter((f) => f.category === filterCategory);
-    // Premium
     if (filterPremium === "yes") list = list.filter((f) => !!f.isPremium);
     if (filterPremium === "no") list = list.filter((f) => !f.isPremium);
+    
     // Ordinamento
     const cmp = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" });
     switch (sortBy) {
+      case "sortOrder":
+        list.sort((a, b) => {
+          if (a.sortOrder !== undefined && b.sortOrder !== undefined) {
+            return a.sortOrder - b.sortOrder;
+          }
+          if (a.sortOrder !== undefined) return -1;
+          if (b.sortOrder !== undefined) return 1;
+          return cmp(a.name, b.name);
+        });
+        break;
       case "name_asc": list.sort((a, b) => cmp(a.name, b.name)); break;
       case "name_desc": list.sort((a, b) => cmp(b.name, a.name)); break;
       case "category_asc": list.sort((a, b) => cmp(a.category, b.category)); break;
       case "category_desc": list.sort((a, b) => cmp(b.category, a.category)); break;
     }
+    
     return list;
   }, [fonts, filterCategory, filterVisibility, filterPremium, sortBy]);
 
+  // Funzione per riordinare i font
+  const handleReorder = React.useCallback(async (fontIds: string[], category?: string) => {
+    try {
+      const response = await fetch('/api/fonts/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fontIds, category })
+      });
+      
+      if (response.ok) {
+        // Forza il refresh della lista con cache busting
+        await fetchFontsList();
+        setStatus('Ordine aggiornato con successo!');
+        // Disattiva la modalità riordinamento dopo il successo
+        setReorderMode(false);
+      } else {
+        setStatus('Errore nell\'aggiornamento dell\'ordine');
+      }
+    } catch (error) {
+      console.error('Errore nel riordinamento:', error);
+      setStatus('Errore nell\'aggiornamento dell\'ordine');
+    }
+  }, [fetchFontsList]);
+
+  // Gestori drag and drop per desktop
+  const handleDragStart = React.useCallback((e: React.DragEvent, fontId: string) => {
+    setDraggedItem(fontId);
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', fontId);
+  }, []);
+
+  const handleDragOver = React.useCallback((e: React.DragEvent, fontId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDraggedOverItem(fontId);
+  }, []);
+
+  const handleDragLeave = React.useCallback(() => {
+    setDraggedOverItem(null);
+  }, []);
+
+  const handleDrop = React.useCallback((e: React.DragEvent, targetFontId: string) => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem === targetFontId) {
+      setDraggedItem(null);
+      setDraggedOverItem(null);
+      setIsDragging(false);
+      return;
+    }
+
+    const currentFonts = filteredFonts;
+    const draggedIndex = currentFonts.findIndex(f => f.id === draggedItem);
+    const targetIndex = currentFonts.findIndex(f => f.id === targetFontId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newOrder = [...currentFonts];
+    const [draggedFont] = newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedFont);
+
+    const fontIds = newOrder.map(f => f.id);
+    const category = filterCategory !== 'Tutte' ? filterCategory : undefined;
+    
+    handleReorder(fontIds, category);
+    setDraggedItem(null);
+    setDraggedOverItem(null);
+    setIsDragging(false);
+  }, [draggedItem, filteredFonts, filterCategory, handleReorder]);
+
+  // Gestori touch migliorati per iOS
+  const handleTouchStart = React.useCallback((e: React.TouchEvent, fontId: string) => {
+    // Previeni il comportamento di default solo se necessario
+    const touch = e.touches[0];
+    setDragStartPos({ x: touch.clientX, y: touch.clientY });
+    
+    const targetElement = e.currentTarget as HTMLElement;
+    draggedElementRef.current = targetElement;
+
+    // Timeout più breve per iOS
+    dragTimeoutRef.current = setTimeout(() => {
+      setDraggedItem(fontId);
+      setIsDragging(true);
+      
+      // Feedback tattile per iOS
+      if (navigator.vibrate) {
+        navigator.vibrate([50]);
+      }
+      
+      // Feedback visivo immediato
+      if (targetElement) {
+        targetElement.style.transform = 'scale(1.02)';
+        targetElement.style.zIndex = '1000';
+      }
+    }, 100); // Ridotto da 150ms a 100ms per iOS
+  }, []);
+
+  const handleTouchMove = React.useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const deltaX = Math.abs(touch.clientX - dragStartPos.x);
+    const deltaY = Math.abs(touch.clientY - dragStartPos.y);
+    
+    // Se non stiamo ancora trascinando, controlla se iniziare
+    if (!isDragging) {
+      // Cancella il drag se movimento orizzontale troppo grande
+      if (deltaX > deltaY && deltaX > 15) {
+        if (dragTimeoutRef.current) {
+          clearTimeout(dragTimeoutRef.current);
+          dragTimeoutRef.current = null;
+        }
+        return;
+      }
+      
+      // Previeni scroll solo se movimento verticale significativo
+      if (deltaY > 5) {
+        e.preventDefault();
+      }
+      return;
+    }
+
+    // Se stiamo trascinando, previeni sempre il default
+    e.preventDefault();
+    
+    // Trova l'elemento sotto il dito
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetRow = elementBelow?.closest('[data-font-id]');
+    const targetId = targetRow?.getAttribute('data-font-id');
+    
+    setDraggedOverItem(targetId || null);
+  }, [isDragging, dragStartPos]);
+
+  const handleTouchEnd = React.useCallback((e: React.TouchEvent) => {
+    // Cleanup del timeout
+    if (dragTimeoutRef.current) {
+      clearTimeout(dragTimeoutRef.current);
+      dragTimeoutRef.current = null;
+    }
+
+    // Reset dello stile
+    if (draggedElementRef.current) {
+      draggedElementRef.current.style.transform = '';
+      draggedElementRef.current.style.zIndex = '';
+      draggedElementRef.current = null;
+    }
+
+    if (!isDragging || !draggedItem) {
+      setDraggedItem(null);
+      setIsDragging(false);
+      setDraggedOverItem(null);
+      return;
+    }
+
+    const touch = e.changedTouches[0];
+    const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetRow = elementBelow?.closest('[data-font-id]');
+    const targetId = targetRow?.getAttribute('data-font-id');
+
+    if (targetId && targetId !== draggedItem) {
+      const currentFonts = filteredFonts;
+      const draggedIndex = currentFonts.findIndex(f => f.id === draggedItem);
+      const targetIndex = currentFonts.findIndex(f => f.id === targetId);
+
+      if (draggedIndex !== -1 && targetIndex !== -1) {
+        const newOrder = [...currentFonts];
+        const [draggedFont] = newOrder.splice(draggedIndex, 1);
+        newOrder.splice(targetIndex, 0, draggedFont);
+
+        const fontIds = newOrder.map(f => f.id);
+        const category = filterCategory !== 'Tutte' ? filterCategory : undefined;
+        
+        handleReorder(fontIds, category);
+        
+        // Feedback tattile di successo
+        if (navigator.vibrate) {
+          navigator.vibrate([30, 50, 30]);
+        }
+      }
+    }
+
+    setDraggedItem(null);
+    setIsDragging(false);
+    setDraggedOverItem(null);
+  }, [isDragging, draggedItem, filteredFonts, filterCategory, handleReorder]);
+
+  // Cleanup del timeout
+  React.useEffect(() => {
+    return () => {
+      if (dragTimeoutRef.current) {
+        clearTimeout(dragTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -281,7 +508,48 @@ export default function UploadForm() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="text-sm text-neutral-600">File del font</label>
-            <input type="file" accept=".ttf,.otf,.woff2" className="mt-2 block w-full" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            <div className="mt-2">
+              <input 
+                ref={fileInputRef}
+                type="file" 
+                accept=".ttf,.otf,.woff2" 
+                className="hidden" 
+                onChange={(e) => setFile(e.target.files?.[0] || null)} 
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full rounded-md border-2 border-dashed border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-600 hover:border-neutral-400 hover:bg-neutral-100 transition-colors"
+              >
+                {file ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-neutral-800 font-medium">{file.name}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <span>Clicca per selezionare un file font</span>
+                  </div>
+                )}
+              </button>
+              {file && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                  }}
+                  className="mt-2 text-xs text-red-600 hover:text-red-800"
+                >
+                  Rimuovi file
+                </button>
+              )}
+            </div>
           </div>
           <div>
             <label className="text-sm text-neutral-600">Nome visualizzato</label>
@@ -289,7 +557,50 @@ export default function UploadForm() {
           </div>
           <div>
             <label className="text-sm text-neutral-600">Categoria</label>
-            <input type="text" className="mt-2 w-full rounded-md border border-neutral-200 px-3 py-2" placeholder="Es. Gotico" value={category} onChange={(e) => setCategory(e.target.value)} />
+            <div className="mt-2 space-y-2">
+              <select 
+                className="w-full rounded-md border border-neutral-200 px-3 py-2" 
+                value={showCustomCategory ? "custom" : category}
+                onChange={(e) => {
+                  if (e.target.value === "custom") {
+                    setShowCustomCategory(true);
+                    setCategory("");
+                  } else {
+                    setShowCustomCategory(false);
+                    setCategory(e.target.value);
+                  }
+                }}
+              >
+                <option value="">Seleziona una categoria esistente</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                <option value="custom">+ Crea nuova categoria</option>
+              </select>
+              
+              {showCustomCategory && (
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    className="flex-1 rounded-md border border-neutral-200 px-3 py-2" 
+                    placeholder="Scrivi il nome della nuova categoria" 
+                    value={category} 
+                    onChange={(e) => setCategory(e.target.value)}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCustomCategory(false);
+                      setCategory("");
+                    }}
+                    className="px-3 py-2 text-sm text-neutral-500 hover:text-neutral-700"
+                  >
+                    Annulla
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 pt-6">
             <input id="premium" type="checkbox" className="rounded" checked={isPremium} onChange={(e) => setIsPremium(e.target.checked)} />
@@ -358,8 +669,9 @@ export default function UploadForm() {
                 setSortBy(e.target.value as "name_asc" | "name_desc" | "category_asc" | "category_desc")
               }
             >
-              <option value="name_asc">Nome A→Z</option>
-              <option value="name_desc">Nome Z→A</option>
+              <option value="sortOrder">Ordine personalizzato</option>
+              <option value="name_asc">Nome (A-Z)</option>
+              <option value="name_desc">Nome (Z-A)</option>
               <option value="category_asc">Categoria A→Z</option>
               <option value="category_desc">Categoria Z→A</option>
             </select>
@@ -367,6 +679,16 @@ export default function UploadForm() {
 
           {/* Azioni bulk */}
           <div className="ml-auto flex items-center gap-2">
+            <button 
+              onClick={() => setReorderMode(!reorderMode)} 
+              className={`rounded border px-3 py-1 text-xs ${
+                reorderMode 
+                  ? 'bg-blue-500 text-white border-blue-500' 
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {reorderMode ? 'Esci da riordino' : 'Riordina font'}
+            </button>
             <button onClick={() => bulkSetVisibility(true)} disabled={selected.size === 0} className="rounded border px-3 py-1 text-xs disabled:opacity-50">Rendi visibili</button>
             <button onClick={() => bulkSetVisibility(false)} disabled={selected.size === 0} className="rounded border px-3 py-1 text-xs disabled:opacity-50">Nascondi selezionati</button>
             <button onClick={() => { setConfirmAction({ type: "delete_bulk" }); setConfirmOpen(true); }} disabled={selected.size === 0} className="rounded border border-red-300 text-red-700 px-3 py-1 text-xs disabled:opacity-50">Elimina selezionati</button>
@@ -395,7 +717,84 @@ export default function UploadForm() {
               </thead>
               <tbody>
                 {filteredFonts.map((f) => (
-                  <EditRow key={f.id} f={f} selected={selected.has(f.id)} onToggleSelect={() => toggleSelect(f.id)} />
+                  reorderMode ? (
+                    <tr 
+                      key={f.id}
+                      data-font-id={f.id}
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(e, f.id)}
+                      onDragOver={(e) => handleDragOver(e, f.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, f.id)}
+                      onTouchStart={(e) => handleTouchStart(e, f.id)}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
+                      className={`border-t border-neutral-200 cursor-move select-none transition-all duration-150 ${
+                        draggedItem === f.id 
+                          ? 'opacity-70 bg-blue-100 shadow-xl transform scale-105 z-50' 
+                          : draggedOverItem === f.id 
+                            ? 'bg-blue-50 border-blue-300 shadow-md' 
+                            : 'hover:bg-gray-50'
+                      }`}
+                      style={{
+                        touchAction: 'pan-y', // Permette scroll verticale ma previene altri gesti
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none',
+                        WebkitTouchCallout: 'none', // Previene il menu contestuale su iOS
+                        WebkitTapHighlightColor: 'transparent', // Rimuove l'highlight su iOS
+                        position: draggedItem === f.id ? 'relative' : 'static',
+                        zIndex: draggedItem === f.id ? 1000 : 'auto'
+                      }}
+                    >
+                      <td className="py-3 pr-4 align-middle">
+                        <div className={`flex items-center justify-center w-8 h-8 rounded transition-colors ${
+                          isDragging && draggedItem === f.id 
+                            ? 'text-blue-600 bg-blue-100' 
+                            : 'text-gray-400 hover:text-gray-600'
+                        }`}>
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M7 2a1 1 0 000 2h6a1 1 0 100-2H7zM4 6a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM4 10a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM5 13a1 1 0 100 2h10a1 1 0 100-2H5z"/>
+                          </svg>
+                        </div>
+                      </td>
+                      <td className="py-3 pr-4 font-medium">{f.name}</td>
+                      <td className="py-3 pr-4 text-gray-600">{f.category}</td>
+                      <td className="py-3 pr-4">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          f.isPremium 
+                            ? 'bg-yellow-100 text-yellow-800' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {f.isPremium ? "Premium" : "Standard"}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span className="text-neutral-700 text-sm">
+                          {f.supports?.bold ? "Bold" : ""}{f.supports?.bold && f.supports?.italic ? ", " : ""}{f.supports?.italic ? "Italic" : ""}
+                          {!f.supports?.bold && !f.supports?.italic ? "—" : ""}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span style={{ fontFamily: f.name }} className="inline-block px-3 py-1 rounded bg-neutral-50 text-sm">
+                          Anteprima
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          {isDragging && draggedItem === f.id ? (
+                            <div className="flex items-center gap-1 text-blue-600">
+                              <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                              <span className="text-xs font-medium">Trascinando...</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-500">Tieni premuto per trascinare</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <EditRow key={f.id} f={f} selected={selected.has(f.id)} onToggleSelect={() => toggleSelect(f.id)} />
+                  )
                 ))}
               </tbody>
             </table>
@@ -431,3 +830,5 @@ export default function UploadForm() {
     </div>
   );
 }
+
+ 

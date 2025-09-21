@@ -23,6 +23,7 @@ async function fetchFonts() {
 
 export default function Home() {
   const [text, setText] = React.useState("");
+  // Aggiorna il tipo per includere sortOrder
   const [fonts, setFonts] = React.useState<Array<{
     id: string;
     name: string;
@@ -31,6 +32,7 @@ export default function Home() {
     isPremium: boolean;
     supports?: { bold?: boolean; italic?: boolean };
     visible?: boolean;
+    sortOrder?: number;
   }>>([]);
 
   // global default controls
@@ -80,7 +82,11 @@ export default function Home() {
     return () => window.removeEventListener('resize', setDefaultValues);
   }, []);
 
-  // localStorage: load
+  // Nuovi stati per la paginazione
+  const [itemsPerPage, setItemsPerPage] = React.useState<number | 'all'>(20);
+  const [currentPage, setCurrentPage] = React.useState<number>(1);
+
+  // localStorage: load - aggiungi il caricamento della paginazione
   React.useEffect(() => {
     try {
       const savedCols = localStorage.getItem("f4t:columns");
@@ -92,10 +98,15 @@ export default function Home() {
         const arr: string[] = JSON.parse(savedFavs);
         setFavorites(new Set(arr));
       }
+      // Carica impostazioni paginazione
+      const savedItemsPerPage = localStorage.getItem("f4t:itemsPerPage");
+      if (savedItemsPerPage) {
+        setItemsPerPage(savedItemsPerPage === 'all' ? 'all' : parseInt(savedItemsPerPage, 10));
+      }
     } catch {}
   }, []);
 
-  // localStorage: persist
+  // localStorage: persist - aggiungi il salvataggio della paginazione
   React.useEffect(() => {
     try { localStorage.setItem("f4t:columns", String(columns)); } catch {}
   }, [columns]);
@@ -105,16 +116,57 @@ export default function Home() {
   React.useEffect(() => {
     try { localStorage.setItem("f4t:favorites", JSON.stringify(Array.from(favorites))); } catch {}
   }, [favorites]);
+  // Salva impostazioni paginazione
+  React.useEffect(() => {
+    try { localStorage.setItem("f4t:itemsPerPage", String(itemsPerPage)); } catch {}
+  }, [itemsPerPage]);
+
+  // Reset pagina corrente quando cambiano filtri o items per pagina
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, onlyFavorites, itemsPerPage]);
 
   // Precarica i font scaricabili direttamente dal pubblico (solo quelli visibili)
   useFontLoader(fonts.filter((f) => f.visible !== false).map((f) => ({ name: f.name, file: f.file })));
 
-  const visibleFonts = React.useMemo(() => {
-    let list = fonts.filter((f) => f.visible !== false);
-    if (selectedCategory !== "Tutti") list = list.filter((f) => f.category === selectedCategory);
-    if (onlyFavorites) list = list.filter((f) => favorites.has(f.id));
-    return list;
-  }, [fonts, selectedCategory, onlyFavorites, favorites]);
+  // Modifica visibleFonts per includere la paginazione
+  const { paginatedFonts, totalPages, totalItems } = React.useMemo(() => {
+    let filtered = fonts.filter((font) => {
+      if (!font.visible && font.visible !== undefined) return false;
+      if (selectedCategory !== "Tutti" && font.category !== selectedCategory) return false;
+      if (onlyFavorites && !favorites.has(font.id)) return false;
+      return true;
+    });
+
+    // Ordina per sortOrder se disponibile, altrimenti per nome
+    filtered = filtered.sort((a, b) => {
+      if (a.sortOrder !== undefined && b.sortOrder !== undefined) {
+        return a.sortOrder - b.sortOrder;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    const totalItems = filtered.length;
+    
+    if (itemsPerPage === 'all') {
+      return {
+        paginatedFonts: filtered,
+        totalPages: 1,
+        totalItems
+      };
+    }
+
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedFonts = filtered.slice(startIndex, endIndex);
+
+    return {
+      paginatedFonts,
+      totalPages,
+      totalItems
+    };
+  }, [fonts, selectedCategory, onlyFavorites, favorites, itemsPerPage, currentPage]);
 
   // Gap dinamico: su mobile, se ci sono più colonne, riduci lo spazio
   const gridGapClass = columns > 1 ? "gap-1 md:gap-6" : "gap-6";
@@ -212,7 +264,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Categoria e Preferiti */}
+        {/* Categoria, Preferiti e Paginazione */}
         <section className="mt-3 w-full flex flex-col gap-3">
           <div className="flex items-center gap-3 flex-wrap">
             <label className="text-sm text-neutral-600">Categoria</label>
@@ -222,16 +274,89 @@ export default function Home() {
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
+            
+            {/* Controllo elementi per pagina */}
+            <label className="text-sm text-neutral-600">Elementi per pagina</label>
+            <select 
+              value={itemsPerPage} 
+              onChange={(e) => setItemsPerPage(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10))} 
+              className="rounded-md border border-neutral-200 px-3 py-2"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value="all">Tutte</option>
+            </select>
+            
             <label className="inline-flex items-center gap-2 ml-auto text-sm">
               <input type="checkbox" checked={onlyFavorites} onChange={(e) => setOnlyFavorites(e.target.checked)} />
               Solo preferiti
             </label>
           </div>
+          
+          {/* Informazioni paginazione e controlli */}
+          {itemsPerPage !== 'all' && (
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="text-sm text-neutral-600">
+                Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}-{Math.min(currentPage * itemsPerPage, totalItems)} di {totalItems} font
+              </div>
+              
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 rounded-md border border-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50"
+                  >
+                    Precedente
+                  </button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 py-1 rounded-md border ${
+                            currentPage === pageNum
+                              ? 'bg-neutral-800 text-white border-neutral-800'
+                              : 'border-neutral-200 hover:bg-neutral-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 rounded-md border border-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50"
+                  >
+                    Successiva
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
-        {/* Griglia preview */}
+        {/* Griglia preview - usa paginatedFonts invece di visibleFonts */}
         <section className={`mt-6 grid ${gridGapClass}`} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
-          {visibleFonts.map((f) => (
+          {paginatedFonts.map((f) => (
             <PreviewCard
               key={f.id}
               fontId={f.id}

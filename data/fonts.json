@@ -4,7 +4,9 @@
     "Sans-Serif",
     "Corsivo",
     "Stampatello",
-    "Gotico"
+    "Gotico",
+    "Fatti a mano",
+    "Devil"
   ],
   "fonts": [
     {
@@ -13,6 +15,7 @@
       "category": "Corsivo",
       "file": "/fonts/5741feb0-c4c6-4384-af7c-cc9500d4512f.otf",
       "isPremium": false,
+      "sortOrder": 1,
       "supports": {
         "bold": true,
         "italic": true
@@ -24,6 +27,7 @@
       "category": "Corsivo",
       "file": "/fonts/1fc19a2e-6b7b-482e-aedf-46dc14036bc8.otf",
       "isPremium": false,
+      "sortOrder": 3,
       "supports": {
         "bold": true,
         "italic": true
@@ -35,6 +39,7 @@
       "category": "Corsivo",
       "file": "/fonts/b08db6bf-6394-4347-b440-7d8b59adb5d2.ttf",
       "isPremium": false,
+      "sortOrder": 2,
       "supports": {
         "bold": true,
         "italic": true
@@ -46,11 +51,628 @@
       "category": "Corsivo",
       "file": "/fonts/05f5de76-96eb-44c9-b685-a58a47c20226.ttf",
       "isPremium": false,
+      "sortOrder": 4,
       "supports": {
         "bold": true,
         "italic": true
       },
-      "visible": false
+      "visible": true
+    },
+    {
+      "id": "85195201-c497-480f-ad6d-c7d9783f6611",
+      "name": "Biro",
+      "category": "Fatti a mano",
+      "file": "/fonts/85195201-c497-480f-ad6d-c7d9783f6611.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "2c01bd8d-133c-45cc-8e94-9a6863cf6283",
+      "name": "Matita",
+      "category": "Fatti a mano",
+      "file": "/fonts/2c01bd8d-133c-45cc-8e94-9a6863cf6283.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "e5ddc83d-b37b-4f7c-9e4a-fd005d5e776d",
+      "name": "Sprituale",
+      "category": "Corsivo",
+      "file": "/fonts/e5ddc83d-b37b-4f7c-9e4a-fd005d5e776d.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "66ea5b6b-2395-45ad-853c-372acb708d71",
+      "name": "Scary",
+      "category": "Devil",
+      "file": "/fonts/66ea5b6b-2395-45ad-853c-372acb708d71.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "a07badb8-a79a-4a54-9b06-5a58edf82078",
+      "name": "Cerotta",
+      "category": "Serif",
+      "file": "/fonts/a07badb8-a79a-4a54-9b06-5a58edf82078.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "aba80efc-7d0b-4bd8-a931-0e82239df0b5",
+      "name": "Paris Forbel",
+      "category": "Serif",
+      "file": "/fonts/aba80efc-7d0b-4bd8-a931-0e82239df0b5.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "cdd45aa1-a6d1-4e5b-bace-dd6dfb04d67a",
+      "name": "Fortune Brother",
+      "category": "Fatti a mano",
+      "file": "/fonts/cdd45aa1-a6d1-4e5b-bace-dd6dfb04d67a.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "f259330e-f6be-4e36-a3cc-89576b6886fb",
+      "name": "Kaleagnetta",
+      "category": "Corsivo",
+      "file": "/fonts/f259330e-f6be-4e36-a3cc-89576b6886fb.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "be09f0f0-4de2-41f4-9be4-0145fa7443dc",
+      "name": "Royalty",
+      "category": "Corsivo",
+      "file": "/fonts/be09f0f0-4de2-41f4-9be4-0145fa7443dc.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "cd4249a9-5b6f-4ae8-9143-729de6ee7495",
+      "name": "Another love",
+      "category": "Corsivo",
+      "file": "/fonts/cd4249a9-5b6f-4ae8-9143-729de6ee7495.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "75ec4032-4f45-4f9d-a02d-c1f5bb8cc98b",
+      "name": "Milton",
+      "category": "Corsivo",
+      "file": "/fonts/75ec4032-4f45-4f9d-a02d-c1f5bb8cc98b.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "f26a47f8-b4c1-41f9-9ab8-388dc0ad7a30",
+      "name": "Elega",
+      "category": "Corsivo",
+      "file": "/fonts/f26a47f8-b4c1-41f9-9ab8-388dc0ad7a30.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "56e230bf-dfc7-4b87-9622-02990e0de3f6",
+      "name": "Hijrnotes",
+      "category": "Corsivo",
+      "file": "/fonts/56e230bf-dfc7-4b87-9622-02990e0de3f6.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "6814f026-4b15-4371-a5c2-b2cf7415df46",
+      "name": "Calligrafia",
+      "category": "Corsivo",
+      "file": "/fonts/6814f026-4b15-4371-a5c2-b2cf7415df46.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "e1d98c71-ae38-4d5d-9b4a-1be3f32a2853",
+      "name": "Byron",
+      "category": "Corsivo",
+      "file": "/fonts/e1d98c71-ae38-4d5d-9b4a-1be3f32a2853.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "40a6c6bb-4d6e-4246-9f78-4e9f83deb5f8",
+      "name": "Distant stroke",
+      "category": "Corsivo",
+      "file": "/fonts/40a6c6bb-4d6e-4246-9f78-4e9f83deb5f8.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "33230373-b8d8-4f5a-8cc4-69e3cb08db89",
+      "name": "Aerotis",
+      "category": "Corsivo",
+      "file": "/fonts/33230373-b8d8-4f5a-8cc4-69e3cb08db89.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "5c5a151f-35f1-49a1-b52f-8cad13e5f615",
+      "name": "The yoshy",
+      "category": "Corsivo",
+      "file": "/fonts/5c5a151f-35f1-49a1-b52f-8cad13e5f615.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "058c813f-3b4b-486e-b474-c2930c49d145",
+      "name": "Milton 2",
+      "category": "Corsivo",
+      "file": "/fonts/058c813f-3b4b-486e-b474-c2930c49d145.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "ad182688-7970-4410-a41b-9507a91a0b20",
+      "name": "Quicksand",
+      "category": "Stampatello",
+      "file": "/fonts/ad182688-7970-4410-a41b-9507a91a0b20.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "1e992aaf-a807-47c7-9ba5-bbe1a7aa0330",
+      "name": "Champagne",
+      "category": "Stampatello",
+      "file": "/fonts/1e992aaf-a807-47c7-9ba5-bbe1a7aa0330.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "ce2397e5-9fc6-47eb-bb7b-f446843293a1",
+      "name": "Hillside",
+      "category": "Stampatello",
+      "file": "/fonts/ce2397e5-9fc6-47eb-bb7b-f446843293a1.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "247c8976-cc52-4ba8-9dcb-9ead7a06bdae",
+      "name": "Hillside",
+      "category": "Corsivo",
+      "file": "/fonts/247c8976-cc52-4ba8-9dcb-9ead7a06bdae.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "bec77b5b-4115-44eb-99e0-08252e5bfa82",
+      "name": "Kiona",
+      "category": "Stampatello",
+      "file": "/fonts/bec77b5b-4115-44eb-99e0-08252e5bfa82.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "e95ed30d-6333-44c5-af33-729f8227bf0e",
+      "name": "walkway rounded",
+      "category": "Stampatello",
+      "file": "/fonts/e95ed30d-6333-44c5-af33-729f8227bf0e.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "43144733-4fd7-46a3-ac80-1a5d8fc12045",
+      "name": "Adam",
+      "category": "Stampatello",
+      "file": "/fonts/43144733-4fd7-46a3-ac80-1a5d8fc12045.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "4ceccf5e-27e6-40c0-9222-b30e60021b79",
+      "name": "Chopin",
+      "category": "Stampatello",
+      "file": "/fonts/4ceccf5e-27e6-40c0-9222-b30e60021b79.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "deee1a86-d986-4baa-adca-ca02e8f687ba",
+      "name": "Princ",
+      "category": "Stampatello",
+      "file": "/fonts/deee1a86-d986-4baa-adca-ca02e8f687ba.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "d8a194bf-e61d-476d-ac6c-8b1c533054c7",
+      "name": "Minimal",
+      "category": "Stampatello",
+      "file": "/fonts/d8a194bf-e61d-476d-ac6c-8b1c533054c7.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "2f6187e5-fc9f-4c8e-aa62-f0f18af87d83",
+      "name": "Loves",
+      "category": "Stampatello",
+      "file": "/fonts/2f6187e5-fc9f-4c8e-aa62-f0f18af87d83.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "5125aec8-840e-47e3-ba84-6b0c239d42dc",
+      "name": "Old London",
+      "category": "Gotico",
+      "file": "/fonts/5125aec8-840e-47e3-ba84-6b0c239d42dc.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "c296c85b-002d-44fb-8b4d-ac2ba0f93645",
+      "name": "Old London alternate",
+      "category": "Gotico",
+      "file": "/fonts/c296c85b-002d-44fb-8b4d-ac2ba0f93645.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "28ca4a77-8e34-491b-8ef5-c20c28a892e3",
+      "name": "Angel wish",
+      "category": "Gotico",
+      "file": "/fonts/28ca4a77-8e34-491b-8ef5-c20c28a892e3.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "776ea62c-3f1f-40fa-87a7-bacb250d078d",
+      "name": "Agothic time",
+      "category": "Gotico",
+      "file": "/fonts/776ea62c-3f1f-40fa-87a7-bacb250d078d.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "85edc712-a52e-4b26-b3ba-ec22fbf9e79a",
+      "name": "Gotheferatu",
+      "category": "Gotico",
+      "file": "/fonts/85edc712-a52e-4b26-b3ba-ec22fbf9e79a.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "ea7745a8-39b9-4211-9260-c6cf6f0d8a3b",
+      "name": "Blanco",
+      "category": "Fatti a mano",
+      "file": "/fonts/ea7745a8-39b9-4211-9260-c6cf6f0d8a3b.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "f89e6d0e-da75-43e4-841f-c239d1db83e6",
+      "name": "Nerfos 1",
+      "category": "Fatti a mano",
+      "file": "/fonts/f89e6d0e-da75-43e4-841f-c239d1db83e6.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "0f26c3eb-642b-44e2-8ba8-a95568c55c78",
+      "name": "Nerfos 2",
+      "category": "Fatti a mano",
+      "file": "/fonts/0f26c3eb-642b-44e2-8ba8-a95568c55c78.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "af9e1d3b-7203-4504-b9d7-0efd6b43e850",
+      "name": "Hiliana",
+      "category": "Corsivo",
+      "file": "/fonts/af9e1d3b-7203-4504-b9d7-0efd6b43e850.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "0a1cd986-65e5-4f3c-9e18-2600b474f69d",
+      "name": "Semplice",
+      "category": "Corsivo",
+      "file": "/fonts/0a1cd986-65e5-4f3c-9e18-2600b474f69d.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "7ac0c6a8-d03b-441e-a436-e68c2a91f254",
+      "name": "Bellavoir",
+      "category": "Serif",
+      "file": "/fonts/7ac0c6a8-d03b-441e-a436-e68c2a91f254.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "6af3ba24-fcd7-4b7f-bd70-b9ffede27348",
+      "name": "Edition",
+      "category": "Serif",
+      "file": "/fonts/6af3ba24-fcd7-4b7f-bd70-b9ffede27348.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "076d21df-5482-442f-ab0e-8ad0d13e4ae4",
+      "name": "Nomark",
+      "category": "Serif",
+      "file": "/fonts/076d21df-5482-442f-ab0e-8ad0d13e4ae4.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "67169fa0-6a6c-4fa1-9497-b1763ce023b4",
+      "name": "Panic",
+      "category": "Devil",
+      "file": "/fonts/67169fa0-6a6c-4fa1-9497-b1763ce023b4.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "d45d6245-c23d-4e7c-a86c-15a550fb5e2c",
+      "name": "Learning",
+      "category": "Corsivo",
+      "file": "/fonts/d45d6245-c23d-4e7c-a86c-15a550fb5e2c.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "d6804568-4cde-4913-a995-254909993f21",
+      "name": "Odio la scuola",
+      "category": "Fatti a mano",
+      "file": "/fonts/d6804568-4cde-4913-a995-254909993f21.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "0746b40d-6f66-4498-b16a-667fd98325a8",
+      "name": "Palmer",
+      "category": "Corsivo",
+      "file": "/fonts/0746b40d-6f66-4498-b16a-667fd98325a8.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "e8d69e11-3a63-4fe2-88d2-8a5b38dd3791",
+      "name": "Notera",
+      "category": "Corsivo",
+      "file": "/fonts/e8d69e11-3a63-4fe2-88d2-8a5b38dd3791.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "163e8fcd-8d1e-40d6-b2ac-fa34f535c2dc",
+      "name": "Shopping",
+      "category": "Corsivo",
+      "file": "/fonts/163e8fcd-8d1e-40d6-b2ac-fa34f535c2dc.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "89447b66-656a-49be-a7c9-103cdf566a97",
+      "name": "Autumn chant",
+      "category": "Corsivo",
+      "file": "/fonts/89447b66-656a-49be-a7c9-103cdf566a97.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "43328d49-7a46-417a-89ee-5b4cee831fec",
+      "name": "Aesthetic",
+      "category": "Corsivo",
+      "file": "/fonts/43328d49-7a46-417a-89ee-5b4cee831fec.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "18777e68-63a1-4bad-85b1-7dc194221522",
+      "name": "White Angelica",
+      "category": "Corsivo",
+      "file": "/fonts/18777e68-63a1-4bad-85b1-7dc194221522.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "20b25370-8328-4a0e-949b-72ecc6576e14",
+      "name": "Castle",
+      "category": "Corsivo",
+      "file": "/fonts/20b25370-8328-4a0e-949b-72ecc6576e14.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "dbdd786b-bddc-487b-a516-c1cdabaa20a9",
+      "name": "Romantic couple",
+      "category": "Corsivo",
+      "file": "/fonts/dbdd786b-bddc-487b-a516-c1cdabaa20a9.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "ca4200c5-7e60-4dbc-a16a-ba170b22d65a",
+      "name": "Courier",
+      "category": "Stampatello",
+      "file": "/fonts/ca4200c5-7e60-4dbc-a16a-ba170b22d65a.otf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
+    },
+    {
+      "id": "f389f4b7-19a2-4178-a1ef-77cf8347c230",
+      "name": "Scandilover",
+      "category": "Corsivo",
+      "file": "/fonts/f389f4b7-19a2-4178-a1ef-77cf8347c230.ttf",
+      "isPremium": false,
+      "supports": {
+        "bold": true,
+        "italic": true
+      }
     }
   ]
 }
