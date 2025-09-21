@@ -48,15 +48,16 @@ export async function GET() {
       categories: categories.map(c => c.name),
       fonts: fonts
     }, { status: 200 });
-  } catch (error) {
-    console.error('❌ Errore database:', error);
-    // @ts-ignore
-    console.error('Stack trace:', error.stack);
+  } catch (e) {
+    console.error('❌ Errore database:', e);
+    let message = 'An unknown error occurred';
+    if (e instanceof Error) {
+        message = e.message;
+        console.error('Stack trace:', e.stack);
+    }
     return NextResponse.json({ 
-      // @ts-ignore
       error: 'Database connection failed',
-      // @ts-ignore
-      message: error.message,
+      message: message,
       categories: [], 
       fonts: [] 
     }, { status: 500 });
