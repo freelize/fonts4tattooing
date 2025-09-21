@@ -1,35 +1,42 @@
 import { NextResponse } from "next/server";
-import fs from "node:fs/promises";
-import path from "node:path";
+import clientPromise from '@/lib/mongodb';
 
-const dataPath = path.join(process.cwd(), "data", "fonts.json");
-
-// Definisco l'interfaccia per il tipo Font
 interface Font {
+  id: string;
   name: string;
+  category: string;
+  file: string;
+  isPremium?: boolean;
+  visible?: boolean;
+  supports?: { bold?: boolean; italic?: boolean };
   sortOrder?: number;
-  [key: string]: unknown;
 }
 
 export async function GET() {
   try {
-    const content = await fs.readFile(dataPath, "utf-8");
-    const json = JSON.parse(content);
+    const client = await clientPromise;
+    const db = client.db(process.env.MONGODB_DB_NAME || 'fonts4tattooing');
     
-    // Ordina i font per sortOrder, poi per nome se sortOrder non è definito
-    if (json.fonts && Array.isArray(json.fonts)) {
-      json.fonts.sort((a: Font, b: Font) => {
-        if (a.sortOrder !== undefined && b.sortOrder !== undefined) {
-          return a.sortOrder - b.sortOrder;
-        }
-        if (a.sortOrder !== undefined) return -1;
-        if (b.sortOrder !== undefined) return 1;
-        return a.name.localeCompare(b.name);
-      });
-    }
+    // Ottieni le categorie
+    const categories = await db.collection('categories')
+      .find({}, { projection: { name: 1, _id: 0 } })
+      .toArray();
     
-    return NextResponse.json(json, { status: 200 });
-  } catch {
+    // Ottieni i font (solo quelli visibili per l'API pubblica)
+    const fonts = await db.collection('fonts')
+      .find(
+        { visible: { $ne: false } }, // Include font dove visible è true o undefined
+        { projection: { _id: 0 } } // Escludi il campo _id di MongoDB
+      )
+      .sort({ sortOrder: 1, name: 1 })
+      .toArray();
+
+    return NextResponse.json({
+      categories: categories.map(c => c.name),
+      fonts: fonts
+    }, { status: 200 });
+  } catch (error) {
+    console.error('Database error:', error);
     return NextResponse.json({ categories: [], fonts: [] }, { status: 200 });
   }
 }

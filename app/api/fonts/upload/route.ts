@@ -3,10 +3,10 @@ import { NextResponse } from "next/server";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import clientPromise from '@/lib/mongodb';
 
 export const runtime = "nodejs";
 
-const dataPath = path.join(process.cwd(), "data", "fonts.json");
 const fontsDir = path.join(process.cwd(), "public", "fonts");
 
 type FontData = {
@@ -17,11 +17,8 @@ type FontData = {
   isPremium?: boolean;
   visible?: boolean;
   supports?: { bold?: boolean; italic?: boolean };
-};
-
-type DatabaseSchema = {
-  categories: string[];
-  fonts: FontData[];
+  sortOrder?: number;
+  createdAt: Date;
 };
 
 export async function POST(req: Request) {
@@ -31,44 +28,60 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const form = await req.formData();
-  const file = form.get("file") as File | null;
-  const name = String(form.get("name") || "");
-  const category = String(form.get("category") || "");
-  const isPremium = String(form.get("isPremium") || "false") === "true";
-  const supportsBold = String(form.get("supportsBold") || "true") === "true";
-  const supportsItalic = String(form.get("supportsItalic") || "true") === "true";
-
-  if (!file || !name || !category) {
-    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
-  }
-
-  await fs.mkdir(fontsDir, { recursive: true });
-  const ext = file.name.split(".").pop()?.toLowerCase() || "ttf";
-  const id = randomUUID();
-  const fileName = `${id}.${ext}`;
-  const filePath = path.join(fontsDir, fileName);
-
-  const arrayBuffer = await file.arrayBuffer();
-  await fs.writeFile(filePath, Buffer.from(arrayBuffer));
-
-  // Update JSON database
-  let db: DatabaseSchema = { categories: [], fonts: [] };
   try {
-    const content = await fs.readFile(dataPath, "utf-8");
-    db = JSON.parse(content) as DatabaseSchema;
-  } catch {}
+    const form = await req.formData();
+    const file = form.get("file") as File | null;
+    const name = String(form.get("name") || "");
+    const category = String(form.get("category") || "");
+    const isPremium = String(form.get("isPremium") || "false") === "true";
+    const supportsBold = String(form.get("supportsBold") || "true") === "true";
+    const supportsItalic = String(form.get("supportsItalic") || "true") === "true";
 
-  if (!db.categories.includes(category)) db.categories.push(category);
-  db.fonts.push({
-    id,
-    name,
-    category,
-    file: `/fonts/${fileName}`,
-    isPremium,
-    supports: { bold: supportsBold, italic: supportsItalic },
-  });
-  await fs.writeFile(dataPath, JSON.stringify(db, null, 2), "utf-8");
+    if (!file || !name || !category) {
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
 
-  return NextResponse.json({ ok: true });
+    // Crea la directory fonts se non esiste
+    await fs.mkdir(fontsDir, { recursive: true });
+    
+    // Salva il file nel filesystem
+    const ext = file.name.split(".").pop()?.toLowerCase() || "ttf";
+    const id = randomUUID();
+    const fileName = `${id}.${ext}`;
+    const filePath = path.join(fontsDir, fileName);
+
+    const arrayBuffer = await file.arrayBuffer();
+    await fs.writeFile(filePath, Buffer.from(arrayBuffer));
+
+    // Salva i metadati in MongoDB
+    const client = await clientPromise;
+    const db = client.db(process.env.MONGODB_DB_NAME || 'fonts4tattooing');
+    
+    // Aggiungi categoria se non esiste
+    await db.collection('categories').updateOne(
+      { name: category },
+      { $setOnInsert: { name: category, createdAt: new Date() } },
+      { upsert: true }
+    );
+
+    // Aggiungi font
+    const fontData: FontData = {
+      id,
+      name,
+      category,
+      file: `/fonts/${fileName}`,
+      isPremium,
+      visible: true,
+      supports: { bold: supportsBold, italic: supportsItalic },
+      sortOrder: 0,
+      createdAt: new Date()
+    };
+
+    await db.collection('fonts').insertOne(fontData);
+
+    return NextResponse.json({ ok: true, font: fontData });
+  } catch (error) {
+    console.error('Upload error:', error);
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+  }
 }

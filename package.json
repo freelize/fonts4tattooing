@@ -11,6 +11,7 @@
   "dependencies": {
     "clsx": "^2.1.1",
     "html-to-image": "^1.11.13",
+    "mongodb": "^6.20.0",
     "next": "15.5.3",
     "react": "19.1.0",
     "react-colorful": "^5.6.1",
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/mongodb": "^4.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
