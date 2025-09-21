@@ -182,7 +182,7 @@ export default function UploadForm() {
     fetchFontsList();
   }
 
-  function EditRow({ f, selected, onToggleSelect }: { f: any; selected: boolean; onToggleSelect: () => void }) {
+  function EditRow({ f, selected, onToggleSelect }: { f: FontListItem; selected: boolean; onToggleSelect: () => void }) {
     const [edit, setEdit] = React.useState(false);
     const [name, setName] = React.useState(f.name);
     const [category, setCategory] = React.useState(f.category);
