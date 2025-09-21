@@ -1,25 +1,10 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
 import clientPromise from '@/lib/mongodb';
+import { Binary } from 'mongodb';
 
 export const runtime = "nodejs";
-
-const fontsDir = path.join(process.cwd(), "public", "fonts");
-
-type FontData = {
-  id: string;
-  name: string;
-  category: string;
-  file: string;
-  isPremium?: boolean;
-  visible?: boolean;
-  supports?: { bold?: boolean; italic?: boolean };
-  sortOrder?: number;
-  createdAt: Date;
-};
 
 export async function POST(req: Request) {
   const cookieStore = await cookies();
@@ -41,19 +26,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
-    // Crea la directory fonts se non esiste
-    await fs.mkdir(fontsDir, { recursive: true });
-    
-    // Salva il file nel filesystem
     const ext = file.name.split(".").pop()?.toLowerCase() || "ttf";
     const id = randomUUID();
-    const fileName = `${id}.${ext}`;
-    const filePath = path.join(fontsDir, fileName);
-
     const arrayBuffer = await file.arrayBuffer();
-    await fs.writeFile(filePath, Buffer.from(arrayBuffer));
 
-    // Salva i metadati in MongoDB
+    // Salva i metadati e il file in MongoDB
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || 'fonts4tattooing');
     
@@ -65,21 +42,29 @@ export async function POST(req: Request) {
     );
 
     // Aggiungi font
-    const fontData: FontData = {
+    const newFontDocument = {
       id,
       name,
       category,
-      file: `/fonts/${fileName}`,
+      file: `/api/fonts/file/${id}`, // URL per servire il font
       isPremium,
       visible: true,
       supports: { bold: supportsBold, italic: supportsItalic },
       sortOrder: 0,
-      createdAt: new Date()
+      createdAt: new Date(),
+      // Dati binari del file
+      fileData: new Binary(Buffer.from(arrayBuffer)),
+      mimeType: file.type || `font/${ext}`,
+      originalFilename: file.name,
+      fileExtension: ext,
     };
 
-    await db.collection('fonts').insertOne(fontData);
+    await db.collection('fonts').insertOne(newFontDocument);
 
-    return NextResponse.json({ ok: true, font: fontData });
+    // Rimuovi i dati binari dalla risposta per efficienza
+    const { fileData, ...fontForResponse } = newFontDocument;
+
+    return NextResponse.json({ ok: true, font: fontForResponse });
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
