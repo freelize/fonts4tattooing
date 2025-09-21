@@ -257,7 +257,7 @@ export default function Home() {
               <p className="mt-2 text-sm text-neutral-700">I font fine line hanno linee sottili e pulite, ideali per tatuaggi eleganti e discreti. Provali con il tuo testo per vedere subito il risultato.</p>
             </details>
             <details className="border rounded-md p-4">
-              <summary className="font-medium cursor-pointer">Posso visualizzare l'anteprima del mio testo?</summary>
+              <summary className="font-medium cursor-pointer">Posso visualizzare l&apos;anteprima del mio testo?</summary>
               <p className="mt-2 text-sm text-neutral-700">Sì, scrivi il tuo testo nella casella in alto e confronta instantaneamente più stili, anche premium.</p>
             </details>
             <details className="border rounded-md p-4">
