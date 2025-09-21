@@ -1,26 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import fs from "node:fs/promises";
-import path from "node:path";
-
-const dataPath = path.join(process.cwd(), "data", "fonts.json");
-
-type FontData = {
-  id: string;
-  name: string;
-  category: string;
-  file: string;
-  isPremium?: boolean;
-  visible?: boolean;
-  supports?: { bold?: boolean; italic?: boolean };
-  sortOrder?: number;
-};
-
-type DatabaseSchema = {
-  categories: string[];
-  fonts: FontData[];
-};
+import { connectToDatabase } from "@/lib/mongodb";
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies();
@@ -36,30 +17,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  let db: DatabaseSchema = { categories: [], fonts: [] };
-  try {
-    const content = await fs.readFile(dataPath, "utf-8");
-    db = JSON.parse(content) as DatabaseSchema;
-  } catch {
-    return NextResponse.json({ error: "Database not found" }, { status: 500 });
+  if (!Array.isArray(payload.fontIds) || payload.fontIds.length === 0) {
+    return NextResponse.json({ error: "fontIds array is required" }, { status: 400 });
   }
 
-  // Riordina i font secondo l'array ricevuto
-  payload.fontIds.forEach((fontId, index) => {
-    const fontIndex = db.fonts.findIndex(f => f.id === fontId);
-    if (fontIndex !== -1) {
-      // Se è specificata una categoria, riordina solo all'interno di quella categoria
-      if (payload.category) {
-        const categoryFonts = db.fonts.filter(f => f.category === payload.category);
-        const baseSortOrder = Math.min(...categoryFonts.map(f => f.sortOrder || 0));
-        db.fonts[fontIndex].sortOrder = baseSortOrder + index;
-      } else {
-        // Riordinamento globale
-        db.fonts[fontIndex].sortOrder = index + 1;
+  try {
+    const { db } = await connectToDatabase();
+    
+    // Prepare bulk operations
+    const bulkOps = payload.fontIds.map((fontId, index) => ({
+      updateOne: {
+        filter: { id: fontId },
+        update: { $set: { sortOrder: index } }
       }
-    }
-  });
+    }));
 
-  await fs.writeFile(dataPath, JSON.stringify(db, null, 2), "utf-8");
-  return NextResponse.json({ success: true });
+    // Execute bulk update
+    const result = await db.collection("fonts").bulkWrite(bulkOps);
+    
+    if (result.modifiedCount === 0) {
+      return NextResponse.json({ error: "No fonts were updated" }, { status: 404 });
+    }
+
+    // If category is provided, also update the categories collection
+    if (payload.category) {
+      await db.collection("categories").updateOne(
+        { name: payload.category },
+        { $set: { name: payload.category } },
+        { upsert: true }
+      );
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      modifiedCount: result.modifiedCount 
+    });
+  } catch (error) {
+    console.error("Error reordering fonts:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
