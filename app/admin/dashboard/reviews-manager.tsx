@@ -19,31 +19,33 @@ type EditableRow = FontRow & {
 
 function hash(s: string) {
   let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
 }
 function pickRating(id: string) {
-  const variants = [4.3, 4.7, 4.9] as const;
-  return variants[hash(id) % variants.length];
+  const ratings = [4.3, 4.7, 4.9];
+  return ratings[hash(id) % ratings.length];
 }
 function pickReviews(id: string) {
-  const h = hash(id);
-  const min = 17;
-  const max = 45;
-  return min + (h % (max - min + 1));
+  return 17 + (hash(id) % 29);
 }
 
 export default function ReviewsManager() {
   const [rows, setRows] = React.useState<EditableRow[]>([]);
   const [filter, setFilter] = React.useState("");
-  const [fonts, setFonts] = React.useState<FontRow[]>([]);
 
   React.useEffect(() => {
     const load = async () => {
       const res = await fetch("/api/fonts?all=1");
       const data = await res.json();
       if (data.fonts) {
-        setFonts(data.fonts);
+        // Usa direttamente data.fonts per creare le righe editabili
+        const editableRows: EditableRow[] = data.fonts.map((font: FontRow) => ({
+          ...font,
+          ratingLocal: font.rating?.toString() || "",
+          reviewsLocal: font.reviewsCount?.toString() || "",
+        }));
+        setRows(editableRows);
       }
     };
     load().catch(() => {});
@@ -99,8 +101,9 @@ export default function ReviewsManager() {
         savedAt: Date.now(),
         error: null,
       });
-    } catch (e: any) {
-      setRow(r.id, { saving: false, error: e?.message || "Errore salvataggio" });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : "Errore salvataggio";
+      setRow(r.id, { saving: false, error: errorMessage });
     }
   };
 
