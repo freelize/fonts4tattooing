@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import UploadForm from "./upload-form";
+import ReviewsManager from "./reviews-manager";
 
 export const metadata: Metadata = {
   title: "Dashboard Admin",
@@ -26,6 +27,12 @@ export default async function AdminDashboard() {
       <p className="text-sm text-neutral-600 mt-1">Carica nuovi font e gestisci i metadati.</p>
       <section className="mt-8">
         <UploadForm />
+      </section>
+      <section className="mt-8">
+        {/* Gestione recensioni */}
+        {/* Client component per modificare rating e numero recensioni */}
+        {/* Import in cima: import ReviewsManager from "./reviews-manager"; */}
+        <ReviewsManager />
       </section>
     </main>
   );

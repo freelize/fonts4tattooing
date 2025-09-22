@@ -17,6 +17,8 @@ async function fetchFonts() {
       isPremium: boolean;
       supports?: { bold?: boolean; italic?: boolean };
       visible?: boolean;
+      rating?: number;
+      reviewsCount?: number;
     }[];
   };
 }
@@ -33,6 +35,8 @@ export default function Home() {
     supports?: { bold?: boolean; italic?: boolean };
     visible?: boolean;
     sortOrder?: number;
+    rating?: number;
+    reviewsCount?: number;
   }>>([]);
 
   // global default controls
@@ -51,7 +55,30 @@ export default function Home() {
 
   React.useEffect(() => {
     fetchFonts().then((data) => {
-      setFonts(data.fonts);
+      // Fallback deterministici: 4.3/4.7/4.9 e 17..45
+      const hash = (s: string) => {
+        let h = 0;
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+        return h;
+      };
+      const pickRating = (id: string) => {
+        const variants = [4.3, 4.7, 4.9] as const;
+        return variants[hash(id) % variants.length];
+      };
+      const pickReviews = (id: string) => {
+        const h = hash(id);
+        const min = 17;
+        const max = 45;
+        return min + (h % (max - min + 1));
+      };
+
+      const withDefaults = data.fonts.map(f => ({
+        ...f,
+        rating: typeof f.rating === "number" ? f.rating : pickRating(f.id),
+        reviewsCount: typeof f.reviewsCount === "number" ? f.reviewsCount : pickReviews(f.id),
+      }));
+
+      setFonts(withDefaults);
       const cats = (data.categories && data.categories.length)
         ? data.categories
         : Array.from(new Set(data.fonts.map((f) => f.category)));
@@ -297,59 +324,54 @@ export default function Home() {
           
           {/* Informazioni paginazione e controlli */}
           {itemsPerPage !== 'all' && (
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="text-sm text-neutral-600">
-                Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}-{Math.min(currentPage * itemsPerPage, totalItems)} di {totalItems} font
-              </div>
-              
-              {totalPages > 1 && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 rounded-md border border-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50"
-                  >
-                    Precedente
-                  </button>
-                  
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-1 rounded-md border ${
-                            currentPage === pageNum
-                              ? 'bg-neutral-800 text-white border-neutral-800'
-                              : 'border-neutral-200 hover:bg-neutral-50'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
+            <div className="py-3">
+              <div className="max-w-6xl mx-auto px-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="text-sm text-neutral-600">
+                    Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}-{Math.min(currentPage * itemsPerPage, totalItems)} di {totalItems} font
                   </div>
                   
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 rounded-md border border-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50"
-                  >
-                    Successiva
-                  </button>
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 rounded-md border border-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50"
+                      >
+                        Precedente
+                      </button>
+                      
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          const pageNum = i + 1;
+                          const isActive = pageNum === currentPage;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`px-2 py-1 rounded-md text-sm ${
+                                isActive
+                                  ? 'bg-neutral-800 text-white'
+                                  : 'border border-neutral-200 hover:bg-neutral-50'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 rounded-md border border-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50"
+                      >
+                        Successiva
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           )}
         </section>
@@ -369,11 +391,63 @@ export default function Home() {
               defaultColor={defaultColor}
               isFavorite={favorites.has(f.id)}
               onToggleFavorite={toggleFavorite}
+              rating={f.rating}
+              reviewsCount={f.reviewsCount}
             />
           ))}
         </section>
 
-        {/* FAQ SEO */}
+        {/* Controlli di paginazione inferiori */}
+        {itemsPerPage !== 'all' && totalPages > 1 && (
+          <div className="py-3">
+            <div className="max-w-6xl mx-auto px-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="text-sm text-neutral-600">
+                  Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}-{Math.min(currentPage * itemsPerPage, totalItems)} di {totalItems} font
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 rounded-md border border-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50"
+                  >
+                    Precedente
+                  </button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const pageNum = i + 1;
+                      const isActive = pageNum === currentPage;
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-2 py-1 rounded-md text-sm ${
+                            isActive
+                              ? 'bg-neutral-800 text-white'
+                              : 'border border-neutral-200 hover:bg-neutral-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 rounded-md border border-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50"
+                  >
+                    Successiva
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <section className="mt-12">
           <h2 className="text-xl md:text-2xl font-semibold text-center">Domande frequenti sui font per tatuaggi</h2>
           <div className="mt-4 grid gap-3 max-w-3xl mx-auto">

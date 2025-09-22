@@ -51,9 +51,9 @@ export default function UploadForm() {
     setLoadingFonts(true);
     setFontsError(null);
     try {
-      // Aggiungi un timestamp per evitare il caching
+      // Aggiungi un timestamp per evitare il caching e ?all=1 per includere font nascosti
       const timestamp = new Date().getTime();
-      const res = await fetch(`/api/fonts?_t=${timestamp}`, { 
+      const res = await fetch(`/api/fonts?all=1&_t=${timestamp}`, { 
         cache: "no-store",
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -438,7 +438,7 @@ export default function UploadForm() {
     };
 
     return (
-      <tr className="border-t border-neutral-200">
+      <tr className={`border-t border-neutral-200 ${f.visible === false ? 'bg-red-50' : ''}`}>
         <td className="py-2 pr-4 align-top">
           <input type="checkbox" checked={selected} onChange={onToggleSelect} />
         </td>
@@ -446,7 +446,14 @@ export default function UploadForm() {
           {edit ? (
             <input value={name} onChange={(e) => setName(e.target.value)} className="w-40 rounded border border-neutral-200 px-2 py-1" />
           ) : (
-            <span>{f.name}</span>
+            <div className="flex items-center gap-2">
+              <span>{f.name}</span>
+              {f.visible === false && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                  Nascosto
+                </span>
+              )}
+            </div>
           )}
           {error && <div className="text-xs text-red-600 mt-1">{error}</div>}
         </td>

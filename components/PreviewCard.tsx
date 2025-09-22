@@ -15,9 +15,11 @@ type PreviewCardProps = {
   defaultColor?: string; // global default color
   isFavorite?: boolean;
   onToggleFavorite?: (id: string) => void;
+  rating?: number;
+  reviewsCount?: number;
 };
 
-export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, supports, baseFontSizePx, defaultColor, isFavorite, onToggleFavorite }: PreviewCardProps) {
+export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, supports, baseFontSizePx, defaultColor, isFavorite, onToggleFavorite, rating, reviewsCount }: PreviewCardProps) {
   const base = baseFontSizePx ?? 56; // global base
   const [settings, setSettings] = React.useState({
     letterSpacing: 0,
@@ -148,8 +150,20 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
             </svg>
           </button>
           <span>{fontName}</span>
+          {/* Badge Premium */}
           {premium && (
             <span className="text-[10px] uppercase tracking-wide bg-neutral-900 text-white px-2 py-0.5 rounded">Premium</span>
+          )}
+          {/* Rating + Reviews */}
+          {(rating !== undefined || reviewsCount !== undefined) && (
+            <span className="ml-1 inline-flex items-center gap-1 text-xs text-neutral-600" aria-label={`Valutazione ${rating?.toFixed?.(1) ?? ""} su 5 con ${reviewsCount ?? ""} recensioni`}>
+              <svg className="h-3.5 w-3.5 text-yellow-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+              </svg>
+              <span>{typeof rating === "number" ? rating.toFixed(1) : ""}</span>
+              <span className="text-neutral-400">·</span>
+              <span>({typeof reviewsCount === "number" ? reviewsCount : ""})</span>
+            </span>
           )}
         </div>
         <button
