@@ -53,7 +53,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
       const weight = settings.bold ? 700 : 400;
       const italic = settings.italic ? "italic " : "";
       const sizePx = Math.max(1, Math.round(fs));
-      const family = `"${fontCssFamily}"`;
+      const family = `"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`;
 
       type DocWithFonts = Document & { fonts?: { load: (font: string) => Promise<void>; ready: Promise<void> } };
       const doc = document as DocWithFonts;
@@ -89,7 +89,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
   };
 
   const baseStyle: React.CSSProperties = {
-    fontFamily: fontCssFamily,
+    fontFamily: `"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`,
     letterSpacing: `${settings.letterSpacing}px`,
     color: settings.color,
     fontWeight: settings.bold ? 700 : 400,
@@ -191,7 +191,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
                 </defs>
                 <text
                   fill={settings.color}
-                  fontFamily={fontCssFamily}
+                  fontFamily={`"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`}
                   fontWeight={settings.bold ? 700 : 400}
                   fontStyle={settings.italic ? "italic" : "normal"}
                   fontSize={fs}
@@ -216,7 +216,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
                 </defs>
                 <text
                   fill={settings.color}
-                  fontFamily={fontCssFamily}
+                  fontFamily={`"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`}
                   fontWeight={settings.bold ? 700 : 400}
                   fontStyle={settings.italic ? "italic" : "normal"}
                   fontSize={fs}

@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import clientPromise from '@/lib/mongodb';
-import { Binary } from 'mongodb';
+import { GridFSBucket } from 'mongodb';
 
 export const runtime = "nodejs";
 
@@ -41,6 +41,30 @@ export async function POST(req: Request) {
       { upsert: true }
     );
 
+    // Use GridFS to store the font file
+    const bucket = new GridFSBucket(db, { bucketName: 'fonts' });
+    
+    // Create a readable stream from the buffer
+    const Readable = require('stream').Readable;
+    const stream = new Readable();
+    stream.push(Buffer.from(arrayBuffer));
+    stream.push(null);
+    
+    // Upload file to GridFS
+    const uploadStream = bucket.openUploadStream(file.name, {
+      metadata: {
+        fontId: id,
+        originalName: file.name,
+        mimeType: file.type || `font/${ext}`
+      }
+    });
+    
+    const gridFSFileId = await new Promise((resolve, reject) => {
+      stream.pipe(uploadStream)
+        .on('error', reject)
+        .on('finish', () => resolve(uploadStream.id));
+    });
+
     // Aggiungi font
     const newFontDocument = {
       id,
@@ -52,8 +76,8 @@ export async function POST(req: Request) {
       supports: { bold: supportsBold, italic: supportsItalic },
       sortOrder: 0,
       createdAt: new Date(),
-      // Dati binari del file
-      fileData: new Binary(Buffer.from(arrayBuffer)),
+      // GridFS file reference
+      gridFSFileId: gridFSFileId,
       mimeType: file.type || `font/${ext}`,
       originalFilename: file.name,
       fileExtension: ext,
@@ -61,9 +85,9 @@ export async function POST(req: Request) {
 
     await db.collection('fonts').insertOne(newFontDocument);
 
-    // Rimuovi i dati binari dalla risposta per efficienza
+    // Rimuovi l'ID GridFS dalla risposta per efficienza
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { fileData: _, ...fontForResponse } = newFontDocument;
+    const { gridFSFileId: _, ...fontForResponse } = newFontDocument;
 
     return NextResponse.json({ ok: true, font: fontForResponse });
   } catch (error) {

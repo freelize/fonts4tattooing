@@ -478,7 +478,7 @@ export default function UploadForm() {
           )}
         </td>
         <td className="py-2 pr-4">
-          <span style={{ fontFamily: f.name }} className="inline-block px-2 py-1 rounded bg-neutral-50">
+          <span style={{ fontFamily: `"${f.name}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif` }} className="inline-block px-2 py-1 rounded bg-neutral-50">
             Anteprima
           </span>
         </td>
@@ -775,7 +775,7 @@ export default function UploadForm() {
                         </span>
                       </td>
                       <td className="py-3 pr-4">
-                        <span style={{ fontFamily: f.name }} className="inline-block px-3 py-1 rounded bg-neutral-50 text-sm">
+                        <span style={{ fontFamily: `"${f.name}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif` }} className="inline-block px-3 py-1 rounded bg-neutral-50 text-sm">
                           Anteprima
                         </span>
                       </td>

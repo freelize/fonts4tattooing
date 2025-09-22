@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
+import { ObjectId, GridFSBucket } from 'mongodb';
 
 export async function GET(
   request: NextRequest,
@@ -18,20 +19,60 @@ export async function GET(
 
     const font = await db.collection('fonts').findOne({ id: id });
 
-    if (!font || !font.fileData) {
+    if (!font) {
       return NextResponse.json({ error: 'Font not found' }, { status: 404 });
     }
 
-    const fileBuffer = font.fileData.buffer;
-    const mimeType = font.mimeType || 'application/octet-stream';
-    const originalFilename = font.originalFilename || `${font.name}.${font.fileExtension || 'ttf'}`;
+    if (!font.gridFSFileId) {
+      return NextResponse.json({ error: 'Font file not found' }, { status: 404 });
+    }
 
-    const headers = new Headers();
-    headers.set('Content-Type', mimeType);
-    headers.set('Content-Disposition', `inline; filename="${originalFilename}"`);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    // Use GridFS to retrieve the file
+    const bucket = new GridFSBucket(db, { bucketName: 'fonts' });
+    
+    try {
+      // Get file info
+      const fileInfo = await bucket.find({ _id: new ObjectId(font.gridFSFileId) }).next();
+      
+      if (!fileInfo) {
+        return NextResponse.json({ error: 'Font file not found in GridFS' }, { status: 404 });
+      }
+      
+      // Create download stream
+      const downloadStream = bucket.openDownloadStream(new ObjectId(font.gridFSFileId));
+      
+      // Convert stream to buffer
+      const chunks: Buffer[] = [];
+      
+      return new Promise((resolve, reject) => {
+        downloadStream.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
+        
+        downloadStream.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          const mimeType = font.mimeType || 'application/octet-stream';
+          const originalFilename = font.originalFilename || `${font.name}.${font.fileExtension || 'ttf'}`;
 
-    return new NextResponse(fileBuffer, { status: 200, headers });
+          const headers = new Headers();
+          headers.set('Content-Type', mimeType);
+          headers.set('Content-Disposition', `inline; filename="${originalFilename}"`);
+          headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+          headers.set('Content-Length', buffer.length.toString());
+
+          resolve(new NextResponse(buffer, { status: 200, headers }));
+        });
+        
+        downloadStream.on('error', (error) => {
+          console.error('Error downloading from GridFS:', error);
+          reject(NextResponse.json({ error: 'Error reading font file' }, { status: 500 }));
+        });
+      });
+      
+    } catch (gridFSError) {
+      console.error('GridFS error:', gridFSError);
+      return NextResponse.json({ error: 'Error accessing font file' }, { status: 500 });
+    }
 
   } catch (error) {
     console.error('Error fetching font file:', error);
