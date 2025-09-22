@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import clientPromise from '@/lib/mongodb';
 import { GridFSBucket } from 'mongodb';
+import { Readable } from 'stream';
 
 export const runtime = "nodejs";
 
@@ -45,8 +46,7 @@ export async function POST(req: Request) {
     const bucket = new GridFSBucket(db, { bucketName: 'fonts' });
     
     // Create a readable stream from the buffer
-    const Readable = require('stream').Readable;
-    const stream = new Readable();
+     const stream = new Readable();
     stream.push(Buffer.from(arrayBuffer));
     stream.push(null);
     

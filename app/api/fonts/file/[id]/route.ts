@@ -44,30 +44,30 @@ export async function GET(
       // Convert stream to buffer
       const chunks: Buffer[] = [];
       
-      return new Promise((resolve, reject) => {
-        downloadStream.on('data', (chunk) => {
-          chunks.push(chunk);
-        });
-        
-        downloadStream.on('end', () => {
-          const buffer = Buffer.concat(chunks);
-          const mimeType = font.mimeType || 'application/octet-stream';
-          const originalFilename = font.originalFilename || `${font.name}.${font.fileExtension || 'ttf'}`;
+      return new Promise<NextResponse>((resolve, reject) => {
+         downloadStream.on('data', (chunk) => {
+           chunks.push(chunk);
+         });
+         
+         downloadStream.on('end', () => {
+           const buffer = Buffer.concat(chunks);
+           const mimeType = font.mimeType || 'application/octet-stream';
+           const originalFilename = font.originalFilename || `${font.name}.${font.fileExtension || 'ttf'}`;
 
-          const headers = new Headers();
-          headers.set('Content-Type', mimeType);
-          headers.set('Content-Disposition', `inline; filename="${originalFilename}"`);
-          headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-          headers.set('Content-Length', buffer.length.toString());
-
-          resolve(new NextResponse(buffer, { status: 200, headers }));
-        });
-        
-        downloadStream.on('error', (error) => {
-          console.error('Error downloading from GridFS:', error);
-          reject(NextResponse.json({ error: 'Error reading font file' }, { status: 500 }));
-        });
-      });
+           const headers = new Headers();
+           headers.set('Content-Type', mimeType);
+           headers.set('Content-Disposition', `inline; filename="${originalFilename}"`);
+           headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+           headers.set('Content-Length', buffer.length.toString());
+ 
+           resolve(new NextResponse(buffer, { status: 200, headers }));
+         });
+         
+         downloadStream.on('error', (error) => {
+           console.error('Error downloading from GridFS:', error);
+           reject(NextResponse.json({ error: 'Error reading font file' }, { status: 500 }));
+         });
+       });
       
     } catch (gridFSError) {
       console.error('GridFS error:', gridFSError);
