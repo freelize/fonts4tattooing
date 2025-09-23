@@ -25,6 +25,8 @@ async function fetchFonts() {
 
 export default function Home() {
   const [text, setText] = React.useState("");
+  // Aggiunto stato di loading
+  const [isLoading, setIsLoading] = React.useState(true);
   // Aggiorna il tipo per includere sortOrder
   const [fonts, setFonts] = React.useState<Array<{
     id: string;
@@ -54,6 +56,7 @@ export default function Home() {
   const [onlyFavorites, setOnlyFavorites] = React.useState<boolean>(false);
 
   React.useEffect(() => {
+    setIsLoading(true);
     fetchFonts().then((data) => {
       // Fallback deterministici: 4.3/4.7/4.9 e 17..45
       const hash = (s: string) => {
@@ -83,6 +86,10 @@ export default function Home() {
         ? data.categories
         : Array.from(new Set(data.fonts.map((f) => f.category)));
       setCategories(cats);
+      setIsLoading(false);
+    }).catch((error) => {
+      console.error('Errore nel caricamento dei font:', error);
+      setIsLoading(false);
     });
   }, []);
 
@@ -377,25 +384,33 @@ export default function Home() {
         </section>
 
         {/* Griglia preview - usa paginatedFonts invece di visibleFonts */}
-        <section className={`mt-6 grid ${gridGapClass}`} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
-          {paginatedFonts.map((f) => (
-            <PreviewCard
-              key={f.id}
-              fontId={f.id}
-              fontName={f.name}
-              fontCssFamily={f.name}
-              text={text || "Anteprima"}
-              premium={f.isPremium}
-              supports={f.supports}
-              baseFontSizePx={baseFontSizePx}
-              defaultColor={defaultColor}
-              isFavorite={favorites.has(f.id)}
-              onToggleFavorite={toggleFavorite}
-              rating={f.rating}
-              reviewsCount={f.reviewsCount}
-            />
-          ))}
-        </section>
+        {isLoading ? (
+          <div className="mt-6 flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neutral-800 mb-4"></div>
+            <p className="text-neutral-600 text-lg">Caricamento font...</p>
+            <p className="text-neutral-500 text-sm mt-1">Stiamo preparando la tua collezione di font per tatuaggi</p>
+          </div>
+        ) : (
+          <section className={`mt-6 grid ${gridGapClass}`} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+            {paginatedFonts.map((f) => (
+              <PreviewCard
+                key={f.id}
+                fontId={f.id}
+                fontName={f.name}
+                fontCssFamily={f.name}
+                text={text || "Anteprima"}
+                premium={f.isPremium}
+                supports={f.supports}
+                baseFontSizePx={baseFontSizePx}
+                defaultColor={defaultColor}
+                isFavorite={favorites.has(f.id)}
+                onToggleFavorite={toggleFavorite}
+                rating={f.rating}
+                reviewsCount={f.reviewsCount}
+              />
+            ))}
+          </section>
+        )}
 
         {/* Controlli di paginazione inferiori */}
         {itemsPerPage !== 'all' && totalPages > 1 && (
