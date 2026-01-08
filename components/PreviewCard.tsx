@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { toPng } from "html-to-image";
+import { toPng, toBlob } from "html-to-image";
 import { EditorToolbar } from "@/components/EditorToolbar";
 
 type PreviewCardProps = {
@@ -26,6 +26,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
     color: defaultColor ?? "#111111",
     bold: false,
     italic: false,
+    uppercase: false,
     curve: 0,
     curveMode: "none" as "none" | "arc" | "circle",
     circleRadius: 220,
@@ -36,6 +37,23 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
   const [toolsOpen, setToolsOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   const uid = React.useId();
+
+  // Reset delle impostazioni locali
+  const handleReset = () => {
+    setSettings({
+      letterSpacing: 0,
+      color: defaultColor ?? "#111111",
+      bold: false,
+      italic: false,
+      uppercase: false,
+      curve: 0,
+      curveMode: "none",
+      circleRadius: 220,
+      circleStart: 0,
+      fontSizePx: undefined,
+    });
+    colorTouchedRef.current = false;
+  };
 
   // Grandezza effettiva: locale se impostata, altrimenti globale
   const fs = settings.fontSizePx ?? base;
@@ -64,6 +82,8 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
         try { await doc.fonts.load(`${italic}${weight} ${sizePx}px ${family}`); } catch {}
         try { await doc.fonts.ready; } catch {}
       }
+      // Wait a bit to ensure layout is stable and fonts are applied
+      await new Promise((resolve) => setTimeout(resolve, 250));
     } catch {}
 
     // Determine explicit bitmap size to keep centering consistent
@@ -74,7 +94,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
     const width = Math.max(1, Math.round(rect.width));
     const height = Math.max(1, Math.round(rect.height));
 
-    const dataUrl = await toPng(node, {
+    const options = {
       backgroundColor: "white",
       pixelRatio: 3, // higher quality export
       canvasWidth: width * 3,
@@ -83,11 +103,31 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
         width: `${width}px`,
         height: `${height}px`,
       },
-    });
-    const link = document.createElement("a");
-    link.download = `${fontName.replace(/\s+/g, "_")}_preview.png`;
-    link.href = dataUrl;
-    link.click();
+      cacheBust: true, // Force reloading resources
+    };
+
+    try {
+      // Warmup run - helps with font loading issues
+      try {
+        await toPng(node, { ...options, pixelRatio: 1 });
+      } catch (e) {
+        // Ignore warmup errors
+      }
+
+      const blob = await toBlob(node, options);
+      if (!blob) throw new Error("Blob creation failed");
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.download = `${fontName.replace(/\s+/g, "_")}_preview.png`;
+      link.href = url;
+      link.click();
+      
+      // Cleanup
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error("Failed to generate preview", err);
+    }
   };
 
   const baseStyle: React.CSSProperties = {
@@ -104,112 +144,109 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
   const isCircle = settings.curveMode === "circle";
   const curved = isArc || isCircle;
 
-  // Dimensioni container dinamiche in px (altezza), in funzione della grandezza font
-  const baseHeight = Math.max(80, Math.round(fs * 1.8));
-  const arcHeight = Math.max(140, Math.round(fs * 2.2));
-  const circleHeight = Math.max(200, Math.round(fs * 2.6));
-  const containerHeight = !curved ? baseHeight : (isArc ? arcHeight : circleHeight);
+  // Stima larghezza testo per calcoli viewBox dinamici
+  const approxCharWidth = fs * 0.6; // Stima media larghezza carattere
+  const textLen = text ? text.length : 9; // "Anteprima" = 9
+  const estTextWidth = Math.max(200, textLen * approxCharWidth);
 
-  // Impostazioni SVG (usiamo viewBox costanti per controllo e clamping)
-  const vbW = 1000; // unità coordinate orizzontali
-  const vbHArc = 500; // unità coordinate verticali per arco
-  const vbHCirc = 1000; // unità per cerchio (quadrato)
-  const pad = 40; // padding interno nel viewBox
+  // ARC LOGIC
+  // Width dinamica basata sul testo + padding
+  const arcVbW = estTextWidth + (fs * 4); 
+  const arcVbH = fs * 4 + Math.abs(settings.curve * 3); // Altezza cresce con la curvatura
+  const arcCx = arcVbW / 2;
+  const arcCy = arcVbH / 2;
+  
+  // Calcolo curva: usiamo settings.curve come offset verticale diretto (amplificato)
+  // Se curve > 0 (verso l'alto): il punto di controllo va su (y minore)
+  // Se curve < 0 (verso il basso): il punto di controllo va giu (y maggiore)
+  // La path parte da sinistra (padding) a destra (width - padding) a meta altezza
+  const arcPadX = fs * 2;
+  const arcYBase = arcCy + (settings.curve > 0 ? fs : -fs); // Spostiamo la base per centrare visivamente
+  const arcPathD = `M ${arcPadX} ${arcYBase} Q ${arcCx} ${arcYBase - (settings.curve * 2.5)} ${arcVbW - arcPadX} ${arcYBase}`;
 
-  // ARC: ampiezza clampata per rimanere nel box
-  const yMidArc = vbHArc / 2;
-  const maxAmp = Math.max(0, yMidArc - pad - fs * 1.2);
-  const amplitude = (settings.curve / 100) * maxAmp; // positivo = arco verso l'alto
-  const x0 = pad;
-  const x1 = vbW - pad;
-  const midX = vbW / 2;
-  const arcPathD = `M ${x0} ${yMidArc} Q ${midX} ${yMidArc - amplitude}, ${x1} ${yMidArc}`;
+  // CIRCLE LOGIC
+  const r = settings.circleRadius ?? 220;
+  // Il viewBox deve contenere il cerchio completo + padding per il testo
+  const circleVbSize = (r * 2) + (fs * 4);
+  const c = circleVbSize / 2;
+  
+  // Path cerchio: parte da ORE 12 (Top) in senso orario
+  // M cx (cy-r) -> Muovi al top
+  // A r r 0 1 1 cx (cy+r) -> Arco di 180 gradi fino a bottom
+  // A r r 0 1 1 cx (cy-r) -> Arco di 180 gradi ritorno a top
+  const circlePathD = `M ${c} ${c - r} A ${r} ${r} 0 1 1 ${c} ${c + r} A ${r} ${r} 0 1 1 ${c} ${c - r}`;
 
-  // CIRCLE: raggio clampato per rimanere nel box (tenendo margine pari a ~0.7*fs)
-  const c = vbHCirc / 2;
-  const maxR = Math.max(10, c - (fs * 0.7));
-  const rUnitsRaw = settings.circleRadius ?? 220;
-  const r = Math.max(60, Math.min(maxR, rUnitsRaw));
-  const circlePathD = `M ${c} ${c} m 0 -${r} a ${r},${r} 0 1,1 0 ${r * 2} a ${r},${r} 0 1,1 0 -${r * 2}`;
-   const circleStartDeg = settings.circleStart ?? 270; // 0..360
-   const circleStartPct = ((circleStartDeg % 360) / 360) * 100; // mappa gradi -> percentuale lunghezza
+  // Calcolo rotazione visuale per "Circle Start"
+  // Ruotiamo l'intero SVG o il gruppo per semplicità
+  const circleRot = settings.circleStart ?? 0;
+
+  // Altezza container effettiva per il CSS
+  let containerHeightStr = "auto";
+  if (isArc) containerHeightStr = `${Math.min(400, arcVbH)}px`; // Cap altezza arc
+  else if (isCircle) containerHeightStr = `${Math.min(500, circleVbSize / 2)}px`; // Cerchio spesso grande, limitiamo
+  else containerHeightStr = `${Math.max(160, fs * 2)}px`;
+
+  // Override container style per adattarsi al contenuto
+  const containerStyle = {
+    backgroundColor: "white",
+    height: isCircle ? "auto" : containerHeightStr,
+    width: "100%",
+    aspectRatio: isCircle ? "1/1" : undefined,
+    maxHeight: isCircle ? "500px" : undefined
+  };
 
   return (
-    <div className={`border border-neutral-200 rounded-lg overflow-hidden ${premium ? "opacity-70" : ""}`}>
-      <div className="p-3 md:p-4 flex items-center justify-between gap-2 md:gap-3">
-        <div className="text-sm font-medium flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fontId && onToggleFavorite?.(fontId)}
-            className={`h-6 w-6 rounded hover:bg-neutral-100 flex items-center justify-center ${isFavorite ? 'text-yellow-500' : 'text-neutral-500'}`}
-            title={isFavorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
-            aria-pressed={isFavorite ? 'true' : 'false'}
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="12 2 15 8.5 22 9 17 13.5 18.5 21 12 17.5 5.5 21 7 13.5 2 9 9 8.5 12 2" />
-            </svg>
-          </button>
-          <span>{fontName}</span>
-          {/* Badge Premium */}
+    <div className={`group border border-neutral-200 rounded-xl overflow-hidden bg-white transition-all duration-300 hover:shadow-lg ${premium ? "opacity-90" : ""}`}>
+      {/* Header: Nome e Info */}
+      <div className="px-4 py-3 border-b border-neutral-100 bg-neutral-50/50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-neutral-800">{fontName}</h3>
           {premium && (
-            <span className="text-[10px] uppercase tracking-wide bg-neutral-900 text-white px-2 py-0.5 rounded">Premium</span>
-          )}
-          {/* Rating + Reviews */}
-          {(rating !== undefined || reviewsCount !== undefined) && (
-            <span className="ml-1 inline-flex items-center gap-1 text-xs text-neutral-600" aria-label={`Valutazione ${rating?.toFixed?.(1) ?? ""} su 5 con ${reviewsCount ?? ""} recensioni`}>
-              <svg className="h-3.5 w-3.5 text-yellow-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-              </svg>
-              <span>{typeof rating === "number" ? rating.toFixed(1) : ""}</span>
-              <span className="text-neutral-400">·</span>
-              <span>({typeof reviewsCount === "number" ? reviewsCount : ""})</span>
-            </span>
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-neutral-900 text-white px-2 py-0.5 rounded-full">Premium</span>
           )}
         </div>
-        <button
-          onClick={onDownload}
-          disabled={premium}
-          className="text-sm px-2 py-1 md:px-3 md:py-1.5 border rounded-md hover:bg-neutral-50 disabled:opacity-50 flex items-center gap-1"
-          aria-label="Scarica PNG"
-          title="Scarica PNG"
-        >
-          <svg className="h-4 w-4 md:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          <span className="hidden md:inline">Scarica PNG</span>
-        </button>
+        
+        {(rating !== undefined || reviewsCount !== undefined) && (
+          <div className="flex items-center gap-1 text-xs text-neutral-500 bg-white px-2 py-1 rounded-full border border-neutral-100 shadow-sm">
+            <svg className="h-3 w-3 text-yellow-400 fill-current" viewBox="0 0 24 24">
+              <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+            </svg>
+            <span className="font-medium text-neutral-700">{typeof rating === "number" ? rating.toFixed(1) : ""}</span>
+            <span className="text-neutral-300">|</span>
+            <span>{typeof reviewsCount === "number" ? reviewsCount : ""}</span>
+          </div>
+        )}
       </div>
 
-      <div className="px-3 md:px-4 pb-3 md:pb-4">
+      {/* Area Anteprima */}
+      <div className="relative px-4 py-6 md:py-8 bg-white flex items-center justify-center min-h-[160px]">
         <div
           ref={ref}
-          className={`bg-white flex items-center justify-center ${premium ? "pointer-events-none" : ""}`}
-          style={{ backgroundColor: "white", height: containerHeight, width: "100%" }}
+          className={`flex items-center justify-center w-full transition-all duration-300 ${premium ? "pointer-events-none grayscale-[0.5] opacity-80" : ""}`}
+          style={containerStyle}
         >
           {!curved ? (
-            <div style={baseStyle} className="text-center">
+            <div style={baseStyle} className="text-center w-full break-words p-4">
               {text || "Anteprima"}
             </div>
           ) : isArc ? (
-            <div style={{ position: "relative", width: "100%" }}>
+            <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg
                 width="100%"
-                height={containerHeight}
-                viewBox={`0 0 ${vbW} ${vbHArc}`}
+                height="100%"
+                viewBox={`0 0 ${arcVbW} ${arcVbH}`}
                 preserveAspectRatio="xMidYMid meet"
+                overflow="visible"
               >
-                <defs>
-                  <path id={`arcPath-${uid}`} d={arcPathD} />
-                </defs>
+                <path id={`arcPath-${uid}`} d={arcPathD} fill="none" stroke="none" />
                 <text
                   fill={settings.color}
                   fontFamily={`"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`}
                   fontWeight={settings.bold ? 700 : 400}
                   fontStyle={settings.italic ? "italic" : "normal"}
                   fontSize={fs}
-                  style={{ letterSpacing: `${settings.letterSpacing}px` }}
+                  style={{ letterSpacing: `${settings.letterSpacing}px`, textTransform: settings.uppercase ? "uppercase" : "none" }}
+                  dominantBaseline="middle"
                 >
                   <textPath href={`#arcPath-${uid}`} startOffset="50%" textAnchor="middle">
                     {text || "Anteprima"}
@@ -218,61 +255,118 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
               </svg>
             </div>
           ) : (
-            <div style={{ position: "relative", width: "100%" }}>
+            <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg
                 width="100%"
-                height={containerHeight}
-                viewBox={`0 0 ${vbW} ${vbHCirc}`}
+                height="100%"
+                viewBox={`0 0 ${circleVbSize} ${circleVbSize}`}
                 preserveAspectRatio="xMidYMid meet"
+                overflow="visible"
               >
-                <defs>
-                  <path id={`circlePath-${uid}`} d={circlePathD} />
-                </defs>
-                <text
-                  fill={settings.color}
-                  fontFamily={`"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`}
-                  fontWeight={settings.bold ? 700 : 400}
-                  fontStyle={settings.italic ? "italic" : "normal"}
-                  fontSize={fs}
-                  style={{ letterSpacing: `${settings.letterSpacing}px` }}
-                >
-                  <textPath href={`#circlePath-${uid}`} startOffset={`${circleStartPct}%`} textAnchor="middle">
-                    {text || "Anteprima"}
-                  </textPath>
-                </text>
+                <path id={`circlePath-${uid}`} d={circlePathD} fill="none" stroke="none" />
+                <g style={{ transformOrigin: "center", transform: `rotate(${circleRot}deg)` }}>
+                  <text
+                    fill={settings.color}
+                    fontFamily={`"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`}
+                    fontWeight={settings.bold ? 700 : 400}
+                    fontStyle={settings.italic ? "italic" : "normal"}
+                    fontSize={fs}
+                    style={{ letterSpacing: `${settings.letterSpacing}px`, textTransform: settings.uppercase ? "uppercase" : "none" }}
+                    dominantBaseline="auto"
+                  >
+                    <textPath href={`#circlePath-${uid}`} startOffset="50%" textAnchor="middle">
+                      {text || "Anteprima"}
+                    </textPath>
+                  </text>
+                </g>
               </svg>
             </div>
           )}
         </div>
-
-        <div className="mt-3 md:mt-4">
-          <button
-            type="button"
-            className="text-sm px-2 py-1 md:px-3 md:py-1.5 border rounded-md hover:bg-neutral-50"
-            onClick={() => setToolsOpen((o) => !o)}
-            aria-expanded={toolsOpen}
-            aria-controls={`tools-${fontName.replace(/\s+/g, "-").toLowerCase()}`}
-          >
-            {toolsOpen ? "Nascondi opzioni" : "Personalizza"}
-          </button>
-
-          {toolsOpen && (
-            <div id={`tools-${fontName.replace(/\s+/g, "-").toLowerCase()}`} className="mt-3">
-              <EditorToolbar
-                value={settings}
-                onChange={(patch) => {
-                  if (Object.prototype.hasOwnProperty.call(patch, "color")) {
-                    colorTouchedRef.current = true;
-                  }
-                  setSettings((s) => ({ ...s, ...patch }));
-                }}
-                disabled={premium}
-                supports={supports}
-              />
-            </div>
-          )}
-        </div>
       </div>
+
+      {/* Action Bar */}
+      <div className="px-3 py-3 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-between gap-3">
+        {/* Preferiti */}
+        <button
+          type="button"
+          onClick={() => fontId && onToggleFavorite?.(fontId)}
+          className={`h-9 w-9 rounded-full flex items-center justify-center transition-all ${
+            isFavorite 
+              ? 'bg-yellow-50 text-yellow-500 ring-1 ring-yellow-200' 
+              : 'text-neutral-400 hover:bg-white hover:text-neutral-600 hover:shadow-sm'
+          }`}
+          title={isFavorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
+        >
+          <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+             <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+          </svg>
+        </button>
+
+        {/* Toggle Personalizza */}
+        <button
+          type="button"
+          onClick={() => setToolsOpen((o) => !o)}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            toolsOpen
+              ? 'bg-neutral-800 text-white shadow-md'
+              : 'bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50'
+          }`}
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line>
+            <line x1="17" y1="16" x2="23" y2="16"></line>
+          </svg>
+          {toolsOpen ? "Chiudi" : "Personalizza"}
+        </button>
+
+        {/* Download */}
+        <button
+          onClick={onDownload}
+          disabled={premium}
+          className="h-9 w-9 rounded-full flex items-center justify-center text-neutral-400 hover:bg-white hover:text-neutral-800 hover:shadow-sm transition-all disabled:opacity-30"
+          title="Scarica anteprima PNG"
+        >
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Pannello Strumenti Espandibile */}
+      {toolsOpen && (
+        <div className="border-t border-neutral-100 bg-neutral-50 p-4 animate-in slide-in-from-top-2 duration-200">
+          <div className="flex justify-end mb-3">
+             <button 
+               onClick={handleReset} 
+               className="text-xs font-medium text-neutral-500 hover:text-red-500 flex items-center gap-1.5 transition-colors px-2 py-1 rounded-md hover:bg-red-50"
+             >
+               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                 <path d="M3 3v5h5" />
+               </svg>
+               Ripristina default
+             </button>
+          </div>
+          <EditorToolbar
+            value={settings}
+            onChange={(patch) => {
+              if (Object.prototype.hasOwnProperty.call(patch, "color")) {
+                colorTouchedRef.current = true;
+              }
+              setSettings((s) => ({ ...s, ...patch }));
+            }}
+            disabled={premium}
+            supports={supports}
+            defaultFontSize={base}
+          />
+        </div>
+      )}
     </div>
   );
 }
