@@ -110,7 +110,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
       // Warmup run - helps with font loading issues
       try {
         await toPng(node, { ...options, pixelRatio: 1 });
-      } catch (e) {
+      } catch {
         // Ignore warmup errors
       }
 

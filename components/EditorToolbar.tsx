@@ -53,7 +53,7 @@ export function EditorToolbar({ value, onChange, disabled, supports, defaultFont
         {TABS.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id as "style" | "text" | "effects")}
             className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
               activeTab === tab.id
                 ? "bg-white text-neutral-900 shadow-sm"
@@ -192,7 +192,7 @@ export function EditorToolbar({ value, onChange, disabled, supports, defaultFont
               ].map((mode) => (
                 <button
                   key={mode.id}
-                  onClick={() => onChange({ curveMode: mode.id as any })}
+                  onClick={() => onChange({ curveMode: mode.id as "none" | "arc" | "circle" })}
                   className={`flex flex-col items-center justify-center gap-2 p-3 border rounded-xl transition-all ${
                     curveMode === mode.id
                       ? "bg-neutral-900 text-white border-neutral-900"
@@ -221,7 +221,7 @@ export function EditorToolbar({ value, onChange, disabled, supports, defaultFont
                  />
                  <div className="flex justify-between text-[10px] text-neutral-400">
                    <span>Verso il basso</span>
-                   <span>Verso l'alto</span>
+                   <span>Verso l&apos;alto</span>
                  </div>
               </div>
             )}
