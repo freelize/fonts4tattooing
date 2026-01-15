@@ -11,6 +11,7 @@ export type ToolbarProps = {
     curve: number; // -100 to 100 (per arco)
     curveMode?: "none" | "arc" | "circle";
     circleRadius?: number; // px
+    circleInvert?: boolean; // testo interno/esterno
     circleStart?: number; // degrees 0..360
     fontSizePx?: number; // grandezza locale
   };
@@ -68,54 +69,54 @@ export function EditorToolbar({ value, onChange, disabled, supports, defaultFont
 
       <div className="p-1">
         {activeTab === "style" && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Grassetto / Corsivo / Maiuscolo */}
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => onChange({ bold: !value.bold })}
                 disabled={boldDisabled}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 border rounded-lg transition-all ${
+                className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 border rounded-lg transition-all ${
                   value.bold
                     ? "bg-neutral-900 text-white border-neutral-900"
                     : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
                 } disabled:opacity-50`}
                 title="Grassetto"
               >
-                <span className="font-bold text-xl">B</span>
+                <span className="font-bold text-lg">B</span>
                 <span className="text-[10px] uppercase tracking-wide">Bold</span>
               </button>
               <button
                 type="button"
                 onClick={() => onChange({ italic: !value.italic })}
                 disabled={italicDisabled}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 border rounded-lg transition-all ${
+                className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 border rounded-lg transition-all ${
                   value.italic
                     ? "bg-neutral-900 text-white border-neutral-900"
                     : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
                 } disabled:opacity-50`}
                 title="Corsivo"
               >
-                <span className="italic text-xl font-serif">I</span>
+                <span className="italic text-lg font-serif">I</span>
                 <span className="text-[10px] uppercase tracking-wide">Italic</span>
               </button>
               <button
                 type="button"
                 onClick={() => onChange({ uppercase: !value.uppercase })}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 border rounded-lg transition-all ${
+                className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 border rounded-lg transition-all ${
                   value.uppercase
                     ? "bg-neutral-900 text-white border-neutral-900"
                     : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
                 }`}
                 title="Maiuscolo"
               >
-                <span className="text-xl font-medium">AA</span>
+                <span className="text-lg font-medium">AA</span>
                 <span className="text-[10px] uppercase tracking-wide">Caps</span>
               </button>
             </div>
 
             {/* Colori */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <label className="text-sm font-medium text-neutral-700">Colore</label>
               <div className="flex flex-wrap gap-2">
                 {PRESET_COLORS.map((c) => (
@@ -146,9 +147,9 @@ export function EditorToolbar({ value, onChange, disabled, supports, defaultFont
         )}
 
         {activeTab === "text" && (
-          <div className="space-y-6">
+          <div className="space-y-4">
              {/* Dimensione */}
-             <div className="space-y-3">
+             <div className="space-y-2">
                <div className="flex justify-between items-center">
                  <label className="text-sm font-medium text-neutral-700">Dimensione</label>
                  <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-1 rounded">{localSize}px</span>
@@ -164,16 +165,16 @@ export function EditorToolbar({ value, onChange, disabled, supports, defaultFont
              </div>
 
              {/* Spaziatura */}
-             <div className="space-y-3">
+             <div className="space-y-2">
                <div className="flex justify-between items-center">
                  <label className="text-sm font-medium text-neutral-700">Spaziatura lettere</label>
                  <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-1 rounded">{value.letterSpacing.toFixed(1)}px</span>
                </div>
                <input
                  type="range"
-                 min={-2}
-                 max={10}
-                 step={0.1}
+                 min={-100}
+                 max={100}
+                 step={1}
                  value={value.letterSpacing}
                  onChange={(e) => onChange({ letterSpacing: parseFloat(e.target.value) })}
                  className="w-full accent-neutral-900 h-2 bg-neutral-200 rounded-lg appearance-none cursor-pointer"
@@ -183,7 +184,7 @@ export function EditorToolbar({ value, onChange, disabled, supports, defaultFont
         )}
 
         {activeTab === "effects" && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: "none", label: "Normale", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="12" x2="20" y2="12"/></svg> },
@@ -193,7 +194,7 @@ export function EditorToolbar({ value, onChange, disabled, supports, defaultFont
                 <button
                   key={mode.id}
                   onClick={() => onChange({ curveMode: mode.id as "none" | "arc" | "circle" })}
-                  className={`flex flex-col items-center justify-center gap-2 p-3 border rounded-xl transition-all ${
+                  className={`flex flex-col items-center justify-center gap-2 p-2 border rounded-xl transition-all ${
                     curveMode === mode.id
                       ? "bg-neutral-900 text-white border-neutral-900"
                       : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50"
@@ -206,15 +207,15 @@ export function EditorToolbar({ value, onChange, disabled, supports, defaultFont
             </div>
 
             {curveMode === "arc" && (
-              <div className="space-y-3 pt-2">
+              <div className="space-y-2 pt-2">
                  <div className="flex justify-between items-center">
                    <label className="text-sm font-medium text-neutral-700">Curvatura</label>
                    <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-1 rounded">{value.curve}</span>
                  </div>
                  <input
                    type="range"
-                   min={-100}
-                   max={100}
+                   min={-360}
+                   max={360}
                    value={value.curve}
                    onChange={(e) => onChange({ curve: parseInt(e.target.value, 10) })}
                    className="w-full accent-neutral-900 h-2 bg-neutral-200 rounded-lg appearance-none cursor-pointer"
@@ -227,23 +228,51 @@ export function EditorToolbar({ value, onChange, disabled, supports, defaultFont
             )}
 
             {curveMode === "circle" && (
-              <div className="space-y-4 pt-2">
-                <div className="space-y-3">
+              <div className="space-y-3 pt-2">
+                <div className="space-y-2">
                    <div className="flex justify-between items-center">
                      <label className="text-sm font-medium text-neutral-700">Raggio</label>
                      <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-1 rounded">{value.circleRadius ?? 220}px</span>
                    </div>
                    <input
                      type="range"
-                     min={60}
-                     max={600}
+                     min={50}
+                     max={1200}
                      value={value.circleRadius ?? 220}
                      onChange={(e) => onChange({ circleRadius: parseInt(e.target.value, 10) })}
                      className="w-full accent-neutral-900 h-2 bg-neutral-200 rounded-lg appearance-none cursor-pointer"
                    />
                 </div>
+
+                {/* Inverti & Dimensione */}
+                <div className="space-y-3 pt-2 border-t border-neutral-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-neutral-700">Testo interno</label>
+                    <button 
+                        onClick={() => onChange({ circleInvert: !value.circleInvert })}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${value.circleInvert ? 'bg-neutral-900' : 'bg-neutral-200'}`}
+                    >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${value.circleInvert ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+
+                   <div className="space-y-2">
+                     <div className="flex justify-between items-center">
+                       <label className="text-sm font-medium text-neutral-700">Dimensione</label>
+                       <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-1 rounded">{localSize}px</span>
+                     </div>
+                     <input
+                       type="range"
+                       min={16}
+                       max={200}
+                       value={localSize}
+                       onChange={(e) => onChange({ fontSizePx: parseInt(e.target.value, 10) })}
+                       className="w-full accent-neutral-900 h-2 bg-neutral-200 rounded-lg appearance-none cursor-pointer"
+                     />
+                   </div>
+                </div>
                 
-                <div className="space-y-3">
+                <div className="space-y-2 pt-2 border-t border-neutral-100">
                    <div className="flex justify-between items-center">
                      <label className="text-sm font-medium text-neutral-700">Rotazione</label>
                      <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-1 rounded">{value.circleStart ?? 270}°</span>

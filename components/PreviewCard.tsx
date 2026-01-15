@@ -30,6 +30,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
     curve: 0,
     curveMode: "none" as "none" | "arc" | "circle",
     circleRadius: 220,
+    circleInvert: false,
     circleStart: 0,
     fontSizePx: undefined as number | undefined,
   });
@@ -49,6 +50,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
       curve: 0,
       curveMode: "none",
       circleRadius: 220,
+      circleInvert: false,
       circleStart: 0,
       fontSizePx: undefined,
     });
@@ -144,24 +146,39 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
   const isCircle = settings.curveMode === "circle";
   const curved = isArc || isCircle;
 
+  // Preparazione testo (Uppercase gestito via JS per compatibilità SVG/Path)
+  const rawText = text || "Anteprima";
+  const content = settings.uppercase ? rawText.toUpperCase() : rawText;
+
   // Stima larghezza testo per calcoli viewBox dinamici
   const approxCharWidth = fs * 0.6; // Stima media larghezza carattere
-  const textLen = text ? text.length : 9; // "Anteprima" = 9
+  const textLen = content.length;
   const estTextWidth = Math.max(200, textLen * approxCharWidth);
 
   // ARC LOGIC
   // Width dinamica basata sul testo + padding
   const arcVbW = estTextWidth + (fs * 4); 
-  const arcVbH = fs * 4 + Math.abs(settings.curve * 3); // Altezza cresce con la curvatura
-  const arcCx = arcVbW / 2;
-  const arcCy = arcVbH / 2;
   
-  // Calcolo curva: usiamo settings.curve come offset verticale diretto (amplificato)
-  // Se curve > 0 (verso l'alto): il punto di controllo va su (y minore)
-  // Se curve < 0 (verso il basso): il punto di controllo va giu (y maggiore)
-  // La path parte da sinistra (padding) a destra (width - padding) a meta altezza
+  // Calcolo altezza ottimizzata per la curva
+  // Altezza reale della curva (Quadratic Bezier peak is at t=0.5, height is 0.5 * control_point_offset)
+  // Control point offset is curve * 2.5. So peak height is curve * 1.25.
+  const curveHeight = Math.abs(settings.curve * 1.25);
+  const arcVbH = curveHeight + (fs * 5); // Height + padding (fs*5 per sicurezza sopra/sotto)
+  const arcCx = arcVbW / 2;
+  
+  // Posizioniamo la base della curva in modo da massimizzare lo spazio
   const arcPadX = fs * 2;
-  const arcYBase = arcCy + (settings.curve > 0 ? fs : -fs); // Spostiamo la base per centrare visivamente
+  let arcYBase;
+  if (settings.curve >= 0) {
+      // Arch (Verso l'alto): La curva va in alto. La base deve stare in basso.
+      // Peak Y = arcYBase - curveHeight. Vogliamo Peak Y a circa fs * 2.5 (padding top)
+      arcYBase = curveHeight + (fs * 2.5);
+  } else {
+      // Smile (Verso il basso): La curva va in basso. La base deve stare in alto.
+      // Base a fs * 2.5 (padding top)
+      arcYBase = (fs * 2.5);
+  }
+
   const arcPathD = `M ${arcPadX} ${arcYBase} Q ${arcCx} ${arcYBase - (settings.curve * 2.5)} ${arcVbW - arcPadX} ${arcYBase}`;
 
   // CIRCLE LOGIC
@@ -170,11 +187,11 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
   const circleVbSize = (r * 2) + (fs * 4);
   const c = circleVbSize / 2;
   
-  // Path cerchio: parte da ORE 12 (Top) in senso orario
-  // M cx (cy-r) -> Muovi al top
-  // A r r 0 1 1 cx (cy+r) -> Arco di 180 gradi fino a bottom
-  // A r r 0 1 1 cx (cy-r) -> Arco di 180 gradi ritorno a top
-  const circlePathD = `M ${c} ${c - r} A ${r} ${r} 0 1 1 ${c} ${c + r} A ${r} ${r} 0 1 1 ${c} ${c - r}`;
+  // Path cerchio: parte da ORE 12 (Top)
+  // Se circleInvert è false (default): Senso Orario (CW) -> Testo Esterno
+  // Se circleInvert è true: Senso Anti-Orario (CCW) -> Testo Interno
+  const sweepFlag = settings.circleInvert ? 0 : 1;
+  const circlePathD = `M ${c} ${c - r} A ${r} ${r} 0 1 ${sweepFlag} ${c} ${c + r} A ${r} ${r} 0 1 ${sweepFlag} ${c} ${c - r}`;
 
   // Calcolo rotazione visuale per "Circle Start"
   // Ruotiamo l'intero SVG o il gruppo per semplicità
@@ -182,8 +199,8 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
 
   // Altezza container effettiva per il CSS
   let containerHeightStr = "auto";
-  if (isArc) containerHeightStr = `${Math.min(400, arcVbH)}px`; // Cap altezza arc
-  else if (isCircle) containerHeightStr = `${Math.min(500, circleVbSize / 2)}px`; // Cerchio spesso grande, limitiamo
+  if (isArc) containerHeightStr = "300px"; // Altezza fissa per evitare che i controlli saltino
+  else if (isCircle) containerHeightStr = "auto"; // Lasciamo che il cerchio si espanda
   else containerHeightStr = `${Math.max(160, fs * 2)}px`;
 
   // Override container style per adattarsi al contenuto
@@ -192,13 +209,23 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
     height: isCircle ? "auto" : containerHeightStr,
     width: "100%",
     aspectRatio: isCircle ? "1/1" : undefined,
-    maxHeight: isCircle ? "500px" : undefined
+    maxHeight: undefined, // Rimosso limite altezza per cerchi grandi
+    // Importante: impostiamo il font anche sul container per aiutare html-to-image a rilevarlo durante l'export SVG
+    fontFamily: `"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`,
   };
 
+  // Faux Bold: Se il font non supporta il grassetto nativo, usiamo un bordo dello stesso colore
+  // Aumentato spessore a 0.04 (4% del font size) per renderlo più visibile
+  const fauxBoldStrokeWidth = settings.bold ? fs * 0.04 : 0;
+  
+  // Faux Italic: Se il font non supporta il corsivo, usiamo una trasformazione SVG
+  const fauxItalicTransform = settings.italic ? "skewX(-15)" : undefined;
+  const fontFamilyStr = `"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`;
+
   return (
-    <div className={`group border border-neutral-200 rounded-xl overflow-hidden bg-white transition-all duration-300 hover:shadow-lg ${premium ? "opacity-90" : ""}`}>
+    <div className={`group border border-neutral-200 rounded-xl bg-white transition-all duration-300 hover:shadow-lg ${premium ? "opacity-90" : ""}`}>
       {/* Header: Nome e Info */}
-      <div className="px-4 py-3 border-b border-neutral-100 bg-neutral-50/50 flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-neutral-100 bg-neutral-50/50 flex items-center justify-between rounded-t-xl">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-neutral-800">{fontName}</h3>
           {premium && (
@@ -219,7 +246,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
       </div>
 
       {/* Area Anteprima */}
-      <div className="relative px-4 py-6 md:py-8 bg-white flex items-center justify-center min-h-[160px]">
+      <div className="sticky top-0 z-30 px-4 py-4 md:py-8 bg-white/95 backdrop-blur-sm flex items-center justify-center min-h-[160px] border-b border-neutral-100 shadow-sm">
         <div
           ref={ref}
           className={`flex items-center justify-center w-full transition-all duration-300 ${premium ? "pointer-events-none grayscale-[0.5] opacity-80" : ""}`}
@@ -227,7 +254,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
         >
           {!curved ? (
             <div style={baseStyle} className="text-center w-full break-words p-4">
-              {text || "Anteprima"}
+              {content}
             </div>
           ) : isArc ? (
             <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -241,15 +268,21 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
                 <path id={`arcPath-${uid}`} d={arcPathD} fill="none" stroke="none" />
                 <text
                   fill={settings.color}
-                  fontFamily={`"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`}
-                  fontWeight={settings.bold ? 700 : 400}
-                  fontStyle={settings.italic ? "italic" : "normal"}
+                  fontFamily={fontFamilyStr}
+                  transform={fauxItalicTransform}
+                  style={{ 
+                    fontWeight: settings.bold ? 700 : 400,
+                    fontStyle: settings.italic ? "oblique" : "normal", // Oblique forza meglio l'inclinazione se manca il corsivo
+                    letterSpacing: `${settings.letterSpacing}px`, 
+                  }}
+                  stroke={settings.color}
+                  strokeWidth={fauxBoldStrokeWidth}
+                  strokeLinejoin="round"
                   fontSize={fs}
-                  style={{ letterSpacing: `${settings.letterSpacing}px`, textTransform: settings.uppercase ? "uppercase" : "none" }}
                   dominantBaseline="middle"
                 >
                   <textPath href={`#arcPath-${uid}`} startOffset="50%" textAnchor="middle">
-                    {text || "Anteprima"}
+                    {content}
                   </textPath>
                 </text>
               </svg>
@@ -267,15 +300,21 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
                 <g style={{ transformOrigin: "center", transform: `rotate(${circleRot}deg)` }}>
                   <text
                     fill={settings.color}
-                    fontFamily={`"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`}
-                    fontWeight={settings.bold ? 700 : 400}
-                    fontStyle={settings.italic ? "italic" : "normal"}
+                    fontFamily={fontFamilyStr}
+                    transform={fauxItalicTransform}
+                    style={{ 
+                      fontWeight: settings.bold ? 700 : 400,
+                      fontStyle: settings.italic ? "oblique" : "normal",
+                      letterSpacing: `${settings.letterSpacing}px`, 
+                    }}
+                    stroke={settings.color}
+                    strokeWidth={fauxBoldStrokeWidth}
+                    strokeLinejoin="round"
                     fontSize={fs}
-                    style={{ letterSpacing: `${settings.letterSpacing}px`, textTransform: settings.uppercase ? "uppercase" : "none" }}
                     dominantBaseline="auto"
                   >
                     <textPath href={`#circlePath-${uid}`} startOffset="50%" textAnchor="middle">
-                      {text || "Anteprima"}
+                      {content}
                     </textPath>
                   </text>
                 </g>
@@ -286,7 +325,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
       </div>
 
       {/* Action Bar */}
-      <div className="px-3 py-3 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-between gap-3">
+      <div className={`px-3 py-3 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-between gap-3 ${!toolsOpen ? "rounded-b-xl" : ""}`}>
         {/* Preferiti */}
         <button
           type="button"
@@ -340,7 +379,7 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
 
       {/* Pannello Strumenti Espandibile */}
       {toolsOpen && (
-        <div className="border-t border-neutral-100 bg-neutral-50 p-4 animate-in slide-in-from-top-2 duration-200">
+        <div className="border-t border-neutral-100 bg-neutral-50 p-4 animate-in slide-in-from-top-2 duration-200 rounded-b-xl">
           <div className="flex justify-end mb-3">
              <button 
                onClick={handleReset} 
