@@ -4,19 +4,22 @@ import { useEffect } from "react";
 
 export type LoadableFont = { name: string; file: string };
 
-function ensureFontFaceStyleTag(): HTMLStyleElement {
-  const id = "f4t-fontfaces-style";
-  let tag = document.getElementById(id) as HTMLStyleElement | null;
+const STYLE_TAG_ID = "f4t-fontfaces-style";
+const injectedFamilies = new Set<string>();
+
+function ensureFontFaceStyleTag(): HTMLStyleElement | null {
+  if (typeof document === "undefined") return null;
+  let tag = document.getElementById(STYLE_TAG_ID) as HTMLStyleElement | null;
   if (!tag) {
     tag = document.createElement("style");
-    tag.id = id;
+    tag.id = STYLE_TAG_ID;
     document.head.appendChild(tag);
   }
   return tag;
 }
 
 function extToFormat(file: string): string | null {
-  const ext = (file.split(".").pop() || "").toLowerCase();
+  const ext = (file.split(".").pop() || "").split("?")[0].toLowerCase();
   if (ext === "ttf") return "truetype";
   if (ext === "otf") return "opentype";
   if (ext === "woff2") return "woff2";
@@ -24,54 +27,57 @@ function extToFormat(file: string): string | null {
   return null;
 }
 
-export function useFontLoader(fonts: LoadableFont[]) {
+function injectFontFace(name: string, file: string) {
+  if (injectedFamilies.has(name)) return;
+  const tag = ensureFontFaceStyleTag();
+  if (!tag) return;
+  const familyEsc = name.replace(/([\\"'])/g, "\\$1");
+  const fmt = extToFormat(file);
+  // Single @font-face rule: browser will synth bold/italic as fallback.
+  // Emitting 4 rules pointing to the SAME file is wasteful and can confuse
+  // html-to-image font embedding.
+  const rule = `@font-face{font-family:"${familyEsc}";src:url("${file}")${
+    fmt ? ` format("${fmt}")` : ""
+  };font-weight:100 900;font-style:normal;font-display:swap;}`;
+  tag.appendChild(document.createTextNode(rule));
+  injectedFamilies.add(name);
+}
+
+/**
+ * Load a single font lazily and inject an @font-face rule.
+ * Pass null to skip (useful before the card has been scrolled into view).
+ */
+export function useLazyFont(font: LoadableFont | null): void {
   useEffect(() => {
+    if (!font) return;
     let cancelled = false;
 
-    async function loadFonts() {
-      const styleTag = typeof document !== "undefined" ? ensureFontFaceStyleTag() : null;
-      const existing = new Set<string>(
-        (styleTag?.textContent || "")
-          .split("@font-face")
-          .map((s) => (s.match(/font-family:\s*['\"]([^'\"]+)['\"]/i)?.[1] || ""))
-          .filter(Boolean)
-      );
-
-      const promises = fonts.map(async (f) => {
-        try {
-          const face = new FontFace(f.name, `url(${f.file})`, { display: "swap" });
+    (async () => {
+      try {
+        injectFontFace(font.name, font.file);
+        if (typeof FontFace !== "undefined") {
+          const face = new FontFace(font.name, `url(${font.file})`, { display: "swap" });
           await face.load();
           if (!cancelled) {
-            (document as any).fonts?.add(face);
+            type DocFonts = Document & { fonts?: { add: (f: FontFace) => void } };
+            (document as DocFonts).fonts?.add(face);
           }
-          // Also inject @font-face so html-to-image can embed it
-          if (styleTag) {
-            const fam = f.name;
-            if (!existing.has(fam)) {
-              const fmt = extToFormat(f.file);
-              const familyEsc = fam.replace(/([\\"'])/g, "\\$1");
-              const variants = [
-                { weight: 400 as const, style: "normal" as const },
-                { weight: 700 as const, style: "normal" as const },
-                { weight: 400 as const, style: "italic" as const },
-                { weight: 700 as const, style: "italic" as const },
-              ];
-              for (const v of variants) {
-                const rule = `@font-face{font-family:"${familyEsc}";src:url("${f.file}")${fmt ? ` format("${fmt}")` : ""};font-weight:${v.weight};font-style:${v.style};font-display:swap;}`;
-                styleTag.appendChild(document.createTextNode(rule));
-              }
-              existing.add(fam);
-            }
-          }
-        } catch (e) {
-          // ignore loading failure of specific font
         }
-      });
-      await Promise.all(promises);
-    }
+      } catch {
+        // swallow font-specific load errors
+      }
+    })();
 
-    if (fonts.length > 0) loadFonts();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [font?.name, font?.file]);
+}
+
+/**
+ * Legacy: batch preload multiple fonts at once. Retained for compatibility,
+ * but prefer `useLazyFont` inside a component that enters the viewport.
+ */
+export function useFontLoader(fonts: LoadableFont[]) {
+  useEffect(() => {
+    fonts.forEach((f) => injectFontFace(f.name, f.file));
   }, [fonts.map((f) => `${f.name}|${f.file}`).join("|")]);
 }

@@ -3,7 +3,6 @@
 import React from "react";
 import Script from "next/script";
 import { PreviewCard } from "@/components/PreviewCard";
-import { useFontLoader } from "@/hooks/useFontLoader";
 
 async function fetchFonts() {
   const res = await fetch("/api/fonts");
@@ -180,8 +179,8 @@ export default function Home() {
     }
   }, [currentPage, selectedCategory, onlyFavorites, itemsPerPage]);
 
-  // Precarica i font scaricabili direttamente dal pubblico (solo quelli visibili)
-  useFontLoader(fonts.filter((f) => f.visible !== false).map((f) => ({ name: f.name, file: f.file })));
+  // I font vengono caricati on-demand dentro PreviewCard quando entrano in viewport
+  // (IntersectionObserver → useLazyFont) per ridurre Fast Origin Transfer.
 
   // Modifica visibleFonts per includere la paginazione
   const { paginatedFonts, totalPages, totalItems } = React.useMemo(() => {
@@ -466,6 +465,7 @@ export default function Home() {
                 fontId={f.id}
                 fontName={f.name}
                 fontCssFamily={f.name}
+                fontFile={f.file}
                 text={text || "Anteprima"}
                 premium={f.isPremium}
                 supports={f.supports}

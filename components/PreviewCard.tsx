@@ -2,66 +2,115 @@
 
 import React from "react";
 import { toPng, toBlob } from "html-to-image";
-import { EditorToolbar } from "@/components/EditorToolbar";
+import { EditorToolbar, type EffectSettings } from "@/components/EditorToolbar";
+import { useLazyFont } from "@/hooks/useFontLoader";
 
 type PreviewCardProps = {
   fontId?: string;
   fontName: string;
   fontCssFamily: string;
+  fontFile: string;
   text: string;
   premium?: boolean;
   supports?: { bold?: boolean; italic?: boolean };
-  baseFontSizePx?: number; // global default size
-  defaultColor?: string; // global default color
+  baseFontSizePx?: number;
+  defaultColor?: string;
   isFavorite?: boolean;
   onToggleFavorite?: (id: string) => void;
   rating?: number;
   reviewsCount?: number;
 };
 
-export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, supports, baseFontSizePx, defaultColor, isFavorite, onToggleFavorite, rating, reviewsCount }: PreviewCardProps) {
-  const base = baseFontSizePx ?? 56; // global base
-  const [settings, setSettings] = React.useState({
-    letterSpacing: 0,
-    color: defaultColor ?? "#111111",
-    bold: false,
-    italic: false,
-    uppercase: false,
-    curve: 0,
-    curveMode: "none" as "none" | "arc" | "circle",
-    circleRadius: 220,
-    circleInvert: false,
-    circleStart: 0,
-    fontSizePx: undefined as number | undefined,
+const DEFAULT_EFFECTS: EffectSettings = {
+  letterSpacing: 0,
+  color: "#111111",
+  bold: false,
+  italic: false,
+  uppercase: false,
+  curve: 0,
+  curveMode: "none",
+  circleRadius: 220,
+  circleInvert: false,
+  circleStart: 0,
+  fontSizePx: undefined,
+  // new effects
+  outlineEnabled: false,
+  outlineWidth: 2,
+  outlineColor: "#111111",
+  shadowEnabled: false,
+  shadowX: 4,
+  shadowY: 4,
+  shadowBlur: 8,
+  shadowColor: "rgba(0,0,0,0.35)",
+  glowEnabled: false,
+  glowIntensity: 12,
+  glowColor: "#ff3b30",
+  skinMode: false,
+};
+
+export function PreviewCard({
+  fontId,
+  fontName,
+  fontCssFamily,
+  fontFile,
+  text,
+  premium,
+  supports,
+  baseFontSizePx,
+  defaultColor,
+  isFavorite,
+  onToggleFavorite,
+  rating,
+  reviewsCount,
+}: PreviewCardProps) {
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  const previewRef = React.useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = React.useState(false);
+  const uid = React.useId();
+
+  // Lazy load the font only when the card enters the viewport.
+  useLazyFont(isVisible ? { name: fontCssFamily, file: fontFile } : null);
+  const fontReady = useFontFaceReady(isVisible ? fontCssFamily : null);
+
+  // IntersectionObserver: mark visible once, stay visible.
+  React.useEffect(() => {
+    if (!cardRef.current || typeof IntersectionObserver === "undefined") {
+      setIsVisible(true);
+      return;
+    }
+    const el = cardRef.current;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            setIsVisible(true);
+            obs.disconnect();
+            break;
+          }
+        }
+      },
+      { rootMargin: "300px 0px", threshold: 0.01 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const base = baseFontSizePx ?? 56;
+  const [settings, setSettings] = React.useState<EffectSettings>({
+    ...DEFAULT_EFFECTS,
+    color: defaultColor ?? DEFAULT_EFFECTS.color,
   });
   const colorTouchedRef = React.useRef(false);
   const [toolsOpen, setToolsOpen] = React.useState(false);
-  const ref = React.useRef<HTMLDivElement>(null);
-  const uid = React.useId();
 
-  // Reset delle impostazioni locali
   const handleReset = () => {
-    setSettings({
-      letterSpacing: 0,
-      color: defaultColor ?? "#111111",
-      bold: false,
-      italic: false,
-      uppercase: false,
-      curve: 0,
-      curveMode: "none",
-      circleRadius: 220,
-      circleInvert: false,
-      circleStart: 0,
-      fontSizePx: undefined,
-    });
+    setSettings({ ...DEFAULT_EFFECTS, color: defaultColor ?? DEFAULT_EFFECTS.color });
     colorTouchedRef.current = false;
   };
 
-  // Grandezza effettiva: locale se impostata, altrimenti globale
   const fs = settings.fontSizePx ?? base;
 
   React.useEffect(() => {
-    // Update color from global only if user hasn't changed it locally
     if (!colorTouchedRef.current && defaultColor && defaultColor !== settings.color) {
       setSettings((s) => ({ ...s, color: defaultColor }));
     }
@@ -69,68 +118,80 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
 
   const onDownload = async () => {
     if (premium) return;
-    if (!ref.current) return;
-    
+    if (!previewRef.current) return;
+
     try {
       const weight = settings.bold ? 700 : 400;
       const italic = settings.italic ? "italic " : "";
       const sizePx = Math.max(1, Math.round(fs));
-      const family = `"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`;
+      const family = `"${fontCssFamily}", sans-serif`;
 
-      type DocWithFonts = Document & { fonts?: { load: (font: string) => Promise<void>; ready: Promise<void> } };
+      type DocWithFonts = Document & {
+        fonts?: { load: (font: string) => Promise<void>; ready: Promise<void> };
+      };
       const doc = document as DocWithFonts;
-
       if (doc.fonts?.load) {
         try { await doc.fonts.load(`${italic}${weight} ${sizePx}px ${family}`); } catch {}
         try { await doc.fonts.ready; } catch {}
       }
-      // Wait a bit to ensure layout is stable and fonts are applied
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, 120));
     } catch {}
 
-    // Determine explicit bitmap size to keep centering consistent
-    const node = ref.current;
+    const node = previewRef.current;
     if (!node) return;
-    
     const rect = node.getBoundingClientRect();
     const width = Math.max(1, Math.round(rect.width));
     const height = Math.max(1, Math.round(rect.height));
 
     const options = {
-      backgroundColor: "white",
-      pixelRatio: 3, // higher quality export
+      backgroundColor: settings.skinMode ? "#f2d7c4" : "white",
+      pixelRatio: 3,
       canvasWidth: width * 3,
       canvasHeight: height * 3,
-      style: {
-        width: `${width}px`,
-        height: `${height}px`,
-      },
-      cacheBust: true, // Force reloading resources
+      style: { width: `${width}px`, height: `${height}px` },
+      // Do NOT bust cache: fonts are immutable and re-fetching them is wasteful.
+      cacheBust: false,
     };
 
     try {
-      // Warmup run - helps with font loading issues
-      try {
-        await toPng(node, { ...options, pixelRatio: 1 });
-      } catch {
-        // Ignore warmup errors
-      }
-
+      try { await toPng(node, { ...options, pixelRatio: 1 }); } catch {}
       const blob = await toBlob(node, options);
       if (!blob) throw new Error("Blob creation failed");
-      
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.download = `${fontName.replace(/\s+/g, "_")}_preview.png`;
       link.href = url;
       link.click();
-      
-      // Cleanup
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error("Failed to generate preview", err);
     }
   };
+
+  // Build text-shadow CSS combining drop shadow and glow.
+  const buildTextShadow = (): string | undefined => {
+    const parts: string[] = [];
+    if (settings.shadowEnabled) {
+      parts.push(
+        `${settings.shadowX}px ${settings.shadowY}px ${settings.shadowBlur}px ${settings.shadowColor}`
+      );
+    }
+    if (settings.glowEnabled) {
+      const g = settings.glowIntensity;
+      parts.push(`0 0 ${g * 0.5}px ${settings.glowColor}`);
+      parts.push(`0 0 ${g}px ${settings.glowColor}`);
+      parts.push(`0 0 ${g * 1.5}px ${settings.glowColor}`);
+    }
+    return parts.length ? parts.join(", ") : undefined;
+  };
+
+  const outlineStyle: React.CSSProperties = settings.outlineEnabled
+    ? {
+        WebkitTextStroke: `${settings.outlineWidth}px ${settings.outlineColor}`,
+        color: "transparent",
+      }
+    : {};
 
   const baseStyle: React.CSSProperties = {
     fontFamily: `"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`,
@@ -140,233 +201,300 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
     fontStyle: settings.italic ? "italic" : "normal",
     fontSize: fs,
     lineHeight: 1.1,
+    textShadow: buildTextShadow(),
+    ...outlineStyle,
   };
 
   const isArc = settings.curveMode === "arc" && settings.curve !== 0;
   const isCircle = settings.curveMode === "circle";
   const curved = isArc || isCircle;
 
-  // Preparazione testo (Uppercase gestito via JS per compatibilità SVG/Path)
   const rawText = text || "Anteprima";
   const content = settings.uppercase ? rawText.toUpperCase() : rawText;
 
-  // Stima larghezza testo per calcoli viewBox dinamici
-  const approxCharWidth = fs * 0.6; // Stima media larghezza carattere
+  const approxCharWidth = fs * 0.6;
   const textLen = content.length;
   const estTextWidth = Math.max(200, textLen * approxCharWidth);
 
-  // ARC LOGIC
-  // Width dinamica basata sul testo + padding
-  const arcVbW = estTextWidth + (fs * 4); 
-  
-  // Calcolo altezza ottimizzata per la curva
-  // Altezza reale della curva (Quadratic Bezier peak is at t=0.5, height is 0.5 * control_point_offset)
-  // Control point offset is curve * 2.5. So peak height is curve * 1.25.
+  const arcVbW = estTextWidth + fs * 4;
   const curveHeight = Math.abs(settings.curve * 1.25);
-  const arcVbH = curveHeight + (fs * 5); // Height + padding (fs*5 per sicurezza sopra/sotto)
+  const arcVbH = curveHeight + fs * 5;
   const arcCx = arcVbW / 2;
-  
-  // Posizioniamo la base della curva in modo da massimizzare lo spazio
   const arcPadX = fs * 2;
-  let arcYBase;
-  if (settings.curve >= 0) {
-      // Arch (Verso l'alto): La curva va in alto. La base deve stare in basso.
-      // Peak Y = arcYBase - curveHeight. Vogliamo Peak Y a circa fs * 2.5 (padding top)
-      arcYBase = curveHeight + (fs * 2.5);
-  } else {
-      // Smile (Verso il basso): La curva va in basso. La base deve stare in alto.
-      // Base a fs * 2.5 (padding top)
-      arcYBase = (fs * 2.5);
-  }
+  const arcYBase =
+    settings.curve >= 0 ? curveHeight + fs * 2.5 : fs * 2.5;
+  const arcPathD = `M ${arcPadX} ${arcYBase} Q ${arcCx} ${arcYBase - settings.curve * 2.5} ${arcVbW - arcPadX} ${arcYBase}`;
 
-  const arcPathD = `M ${arcPadX} ${arcYBase} Q ${arcCx} ${arcYBase - (settings.curve * 2.5)} ${arcVbW - arcPadX} ${arcYBase}`;
-
-  // CIRCLE LOGIC
   const r = settings.circleRadius ?? 220;
-  // Il viewBox deve contenere il cerchio completo + padding per il testo
-  const circleVbSize = (r * 2) + (fs * 4);
+  const circleVbSize = r * 2 + fs * 4;
   const c = circleVbSize / 2;
-  
-  // Path cerchio: parte da ORE 12 (Top)
-  // Se circleInvert è false (default): Senso Orario (CW) -> Testo Esterno
-  // Se circleInvert è true: Senso Anti-Orario (CCW) -> Testo Interno
   const sweepFlag = settings.circleInvert ? 0 : 1;
   const circlePathD = `M ${c} ${c - r} A ${r} ${r} 0 1 ${sweepFlag} ${c} ${c + r} A ${r} ${r} 0 1 ${sweepFlag} ${c} ${c - r}`;
-
-  // Calcolo rotazione visuale per "Circle Start"
-  // Ruotiamo l'intero SVG o il gruppo per semplicità
   const circleRot = settings.circleStart ?? 0;
 
-  // Altezza container effettiva per il CSS
   let containerHeightStr = "auto";
-  if (isArc) containerHeightStr = "300px"; // Altezza fissa per evitare che i controlli saltino
-  else if (isCircle) containerHeightStr = "auto"; // Lasciamo che il cerchio si espanda
+  if (isArc) containerHeightStr = "300px";
+  else if (isCircle) containerHeightStr = "auto";
   else containerHeightStr = `${Math.max(160, fs * 2)}px`;
 
-  // Override container style per adattarsi al contenuto
-  const containerStyle = {
-    backgroundColor: "white",
+  const previewBg = settings.skinMode ? "" : "bg-white";
+  const containerStyle: React.CSSProperties = {
     height: isCircle ? "auto" : containerHeightStr,
     width: "100%",
     aspectRatio: isCircle ? "1/1" : undefined,
-    maxHeight: undefined, // Rimosso limite altezza per cerchi grandi
-    // Importante: impostiamo il font anche sul container per aiutare html-to-image a rilevarlo durante l'export SVG
-    fontFamily: `"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`,
+    fontFamily: `"${fontCssFamily}", sans-serif`,
   };
 
-  // Faux Bold: Se il font non supporta il grassetto nativo, usiamo un bordo dello stesso colore
-  // Aumentato spessore a 0.04 (4% del font size) per renderlo più visibile
   const fauxBoldStrokeWidth = settings.bold ? fs * 0.04 : 0;
-  
-  // Faux Italic: Se il font non supporta il corsivo, usiamo una trasformazione SVG
   const fauxItalicTransform = settings.italic ? "skewX(-15)" : undefined;
-  const fontFamilyStr = `"${fontCssFamily}", "Noto Sans CJK SC", "Noto Sans CJK TC", "Noto Sans CJK JP", "Noto Sans CJK KR", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Heiti SC", "WenQuanYi Micro Hei", sans-serif`;
+  const fontFamilyStr = `"${fontCssFamily}", sans-serif`;
+
+  // SVG text-shadow filter id (per-card unique)
+  const filterId = `f4t-filter-${uid.replace(/[^a-zA-Z0-9]/g, "")}`;
 
   return (
-    <div className={`group border border-neutral-200 rounded-xl bg-white transition-all duration-300 hover:shadow-lg ${premium ? "opacity-90" : ""}`}>
-      {/* Header: Nome e Info */}
-      <div className="px-4 py-3 border-b border-neutral-100 bg-neutral-50/50 flex items-center justify-between rounded-t-xl">
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-neutral-800">{fontName}</h3>
+    <div
+      ref={cardRef}
+      className={`premium-card group border border-neutral-200/80 rounded-2xl bg-white overflow-hidden ${
+        premium ? "opacity-95" : ""
+      }`}
+    >
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-neutral-100 bg-gradient-to-b from-neutral-50 to-white flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <h3 className="font-semibold text-neutral-900 text-[15px] tracking-tight truncate">
+            {fontName}
+          </h3>
           {premium && (
-            <span className="text-[10px] font-bold uppercase tracking-wider bg-neutral-900 text-white px-2 py-0.5 rounded-full">Premium</span>
+            <span className="flex-shrink-0 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest bg-gradient-to-r from-neutral-900 to-neutral-700 text-white px-2 py-0.5 rounded-full shadow-sm">
+              <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8 5.8 21.3l2.4-7.4L2 9.4h7.6z" />
+              </svg>
+              Premium
+            </span>
           )}
         </div>
-        
+
         {(rating !== undefined || reviewsCount !== undefined) && (
-          <div className="flex items-center gap-1 text-xs text-neutral-500 bg-white px-2 py-1 rounded-full border border-neutral-100 shadow-sm">
-            <svg className="h-3 w-3 text-yellow-400 fill-current" viewBox="0 0 24 24">
+          <div className="flex-shrink-0 flex items-center gap-1 text-xs text-neutral-500 bg-white/70 backdrop-blur px-2 py-1 rounded-full border border-neutral-100">
+            <svg className="h-3 w-3 text-amber-400 fill-current" viewBox="0 0 24 24">
               <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
             </svg>
-            <span className="font-medium text-neutral-700">{typeof rating === "number" ? rating.toFixed(1) : ""}</span>
-            <span className="text-neutral-300">|</span>
+            <span className="font-semibold text-neutral-800">
+              {typeof rating === "number" ? rating.toFixed(1) : ""}
+            </span>
+            <span className="text-neutral-300">·</span>
             <span>{typeof reviewsCount === "number" ? reviewsCount : ""}</span>
           </div>
         )}
       </div>
 
-      {/* Area Anteprima */}
-      <div className="sticky top-0 z-30 px-4 py-4 md:py-8 bg-white/95 backdrop-blur-sm flex items-center justify-center min-h-[160px] border-b border-neutral-100 shadow-sm">
-        <div
-          ref={ref}
-          className={`flex items-center justify-center w-full transition-all duration-300 ${premium ? "pointer-events-none grayscale-[0.5] opacity-80" : ""}`}
-          style={containerStyle}
-        >
-          {!curved ? (
-            <div style={baseStyle} className="text-center w-full break-words p-4">
-              {content}
-            </div>
-          ) : isArc ? (
-            <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg
-                width="100%"
-                height="100%"
-                viewBox={`0 0 ${arcVbW} ${arcVbH}`}
-                preserveAspectRatio="xMidYMid meet"
-                overflow="visible"
-              >
-                <path id={`arcPath-${uid}`} d={arcPathD} fill="none" stroke="none" />
-                <text
-                  fill={settings.color}
-                  fontFamily={fontFamilyStr}
-                  transform={fauxItalicTransform}
-                  style={{ 
-                    fontWeight: settings.bold ? 700 : 400,
-                    fontStyle: settings.italic ? "oblique" : "normal", // Oblique forza meglio l'inclinazione se manca il corsivo
-                    letterSpacing: `${settings.letterSpacing}px`, 
-                  }}
-                  stroke={settings.color}
-                  strokeWidth={fauxBoldStrokeWidth}
-                  strokeLinejoin="round"
-                  fontSize={fs}
-                  dominantBaseline="middle"
+      {/* Preview area */}
+      <div
+        className={`relative px-4 py-6 md:py-10 flex items-center justify-center min-h-[180px] border-b border-neutral-100 ${
+          settings.skinMode ? "skin-surface" : previewBg
+        }`}
+      >
+        {!isVisible || !fontReady ? (
+          <div className="w-3/4 h-8 rounded-md skeleton-shimmer" aria-label="Caricamento font..." />
+        ) : (
+          <div
+            ref={previewRef}
+            className={`flex items-center justify-center w-full ${
+              premium ? "pointer-events-none grayscale-[0.3] opacity-85" : ""
+            }`}
+            style={containerStyle}
+          >
+            {!curved ? (
+              <div style={baseStyle} className="text-center w-full break-words p-4 anim-fade-up">
+                {content}
+              </div>
+            ) : isArc ? (
+              <div className="relative w-full h-full flex items-center justify-center">
+                <svg
+                  width="100%"
+                  height="100%"
+                  viewBox={`0 0 ${arcVbW} ${arcVbH}`}
+                  preserveAspectRatio="xMidYMid meet"
+                  overflow="visible"
                 >
-                  <textPath href={`#arcPath-${uid}`} startOffset="50%" textAnchor="middle">
-                    {content}
-                  </textPath>
-                </text>
-              </svg>
-            </div>
-          ) : (
-            <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg
-                width="100%"
-                height="100%"
-                viewBox={`0 0 ${circleVbSize} ${circleVbSize}`}
-                preserveAspectRatio="xMidYMid meet"
-                overflow="visible"
-              >
-                <path id={`circlePath-${uid}`} d={circlePathD} fill="none" stroke="none" />
-                <g style={{ transformOrigin: "center", transform: `rotate(${circleRot}deg)` }}>
+                  <defs>
+                    <filter id={filterId} x="-30%" y="-30%" width="160%" height="160%">
+                      {settings.shadowEnabled && (
+                        <feDropShadow
+                          dx={settings.shadowX}
+                          dy={settings.shadowY}
+                          stdDeviation={settings.shadowBlur / 2}
+                          floodColor={settings.shadowColor}
+                        />
+                      )}
+                      {settings.glowEnabled && (
+                        <feDropShadow
+                          dx={0}
+                          dy={0}
+                          stdDeviation={settings.glowIntensity / 2}
+                          floodColor={settings.glowColor}
+                        />
+                      )}
+                    </filter>
+                  </defs>
+                  <path id={`arcPath-${uid}`} d={arcPathD} fill="none" stroke="none" />
                   <text
-                    fill={settings.color}
+                    fill={settings.outlineEnabled ? "none" : settings.color}
                     fontFamily={fontFamilyStr}
                     transform={fauxItalicTransform}
-                    style={{ 
+                    style={{
                       fontWeight: settings.bold ? 700 : 400,
                       fontStyle: settings.italic ? "oblique" : "normal",
-                      letterSpacing: `${settings.letterSpacing}px`, 
+                      letterSpacing: `${settings.letterSpacing}px`,
                     }}
-                    stroke={settings.color}
-                    strokeWidth={fauxBoldStrokeWidth}
+                    stroke={
+                      settings.outlineEnabled
+                        ? settings.outlineColor
+                        : settings.color
+                    }
+                    strokeWidth={
+                      settings.outlineEnabled
+                        ? settings.outlineWidth
+                        : fauxBoldStrokeWidth
+                    }
                     strokeLinejoin="round"
                     fontSize={fs}
-                    dominantBaseline="auto"
+                    dominantBaseline="middle"
+                    filter={
+                      settings.shadowEnabled || settings.glowEnabled
+                        ? `url(#${filterId})`
+                        : undefined
+                    }
                   >
-                    <textPath href={`#circlePath-${uid}`} startOffset="50%" textAnchor="middle">
+                    <textPath href={`#arcPath-${uid}`} startOffset="50%" textAnchor="middle">
                       {content}
                     </textPath>
                   </text>
-                </g>
-              </svg>
-            </div>
-          )}
-        </div>
+                </svg>
+              </div>
+            ) : (
+              <div className="relative w-full h-full flex items-center justify-center">
+                <svg
+                  width="100%"
+                  height="100%"
+                  viewBox={`0 0 ${circleVbSize} ${circleVbSize}`}
+                  preserveAspectRatio="xMidYMid meet"
+                  overflow="visible"
+                >
+                  <defs>
+                    <filter id={filterId} x="-30%" y="-30%" width="160%" height="160%">
+                      {settings.shadowEnabled && (
+                        <feDropShadow
+                          dx={settings.shadowX}
+                          dy={settings.shadowY}
+                          stdDeviation={settings.shadowBlur / 2}
+                          floodColor={settings.shadowColor}
+                        />
+                      )}
+                      {settings.glowEnabled && (
+                        <feDropShadow
+                          dx={0}
+                          dy={0}
+                          stdDeviation={settings.glowIntensity / 2}
+                          floodColor={settings.glowColor}
+                        />
+                      )}
+                    </filter>
+                  </defs>
+                  <path id={`circlePath-${uid}`} d={circlePathD} fill="none" stroke="none" />
+                  <g style={{ transformOrigin: "center", transform: `rotate(${circleRot}deg)` }}>
+                    <text
+                      fill={settings.outlineEnabled ? "none" : settings.color}
+                      fontFamily={fontFamilyStr}
+                      transform={fauxItalicTransform}
+                      style={{
+                        fontWeight: settings.bold ? 700 : 400,
+                        fontStyle: settings.italic ? "oblique" : "normal",
+                        letterSpacing: `${settings.letterSpacing}px`,
+                      }}
+                      stroke={
+                        settings.outlineEnabled
+                          ? settings.outlineColor
+                          : settings.color
+                      }
+                      strokeWidth={
+                        settings.outlineEnabled
+                          ? settings.outlineWidth
+                          : fauxBoldStrokeWidth
+                      }
+                      strokeLinejoin="round"
+                      fontSize={fs}
+                      dominantBaseline="auto"
+                      filter={
+                        settings.shadowEnabled || settings.glowEnabled
+                          ? `url(#${filterId})`
+                          : undefined
+                      }
+                    >
+                      <textPath href={`#circlePath-${uid}`} startOffset="50%" textAnchor="middle">
+                        {content}
+                      </textPath>
+                    </text>
+                  </g>
+                </svg>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Skin mode corner pill */}
+        {settings.skinMode && (
+          <span className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-widest bg-white/80 backdrop-blur text-neutral-700 px-2 py-1 rounded-full border border-neutral-200">
+            Skin
+          </span>
+        )}
       </div>
 
       {/* Action Bar */}
-      <div className={`px-3 py-3 border-t border-neutral-100 bg-neutral-50/50 flex items-center justify-between gap-3 ${!toolsOpen ? "rounded-b-xl" : ""}`}>
-        {/* Preferiti */}
+      <div
+        className={`px-3 py-3 border-t border-neutral-100 bg-gradient-to-b from-white to-neutral-50 flex items-center justify-between gap-3 ${
+          !toolsOpen ? "rounded-b-2xl" : ""
+        }`}
+      >
         <button
           type="button"
           onClick={() => fontId && onToggleFavorite?.(fontId)}
           className={`h-9 w-9 rounded-full flex items-center justify-center transition-all ${
-            isFavorite 
-              ? 'bg-yellow-50 text-yellow-500 ring-1 ring-yellow-200' 
-              : 'text-neutral-400 hover:bg-white hover:text-neutral-600 hover:shadow-sm'
+            isFavorite
+              ? "bg-amber-50 text-amber-500 ring-1 ring-amber-200"
+              : "text-neutral-400 hover:bg-white hover:text-neutral-600 hover:shadow-sm"
           }`}
-          title={isFavorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
+          title={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
         >
           <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
-             <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+            <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
           </svg>
         </button>
 
-        {/* Toggle Personalizza */}
         <button
           type="button"
           onClick={() => setToolsOpen((o) => !o)}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
             toolsOpen
-              ? 'bg-neutral-800 text-white shadow-md'
-              : 'bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50'
+              ? "bg-neutral-900 text-white shadow-lg shadow-neutral-900/20"
+              : "bg-white border border-neutral-200 text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50"
           }`}
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
-            <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
-            <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line>
-            <line x1="17" y1="16" x2="23" y2="16"></line>
+            <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+            <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+            <line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" />
+            <line x1="17" y1="16" x2="23" y2="16" />
           </svg>
-          {toolsOpen ? "Chiudi" : "Personalizza"}
+          {toolsOpen ? "Chiudi editor" : "Personalizza"}
         </button>
 
-        {/* Download */}
         <button
           onClick={onDownload}
           disabled={premium}
-          className="h-9 w-9 rounded-full flex items-center justify-center text-neutral-400 hover:bg-white hover:text-neutral-800 hover:shadow-sm transition-all disabled:opacity-30"
+          className="h-9 w-9 rounded-full flex items-center justify-center text-neutral-500 hover:bg-white hover:text-neutral-900 hover:shadow-sm transition-all disabled:opacity-30"
           title="Scarica anteprima PNG"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -377,20 +505,19 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
         </button>
       </div>
 
-      {/* Pannello Strumenti Espandibile */}
       {toolsOpen && (
-        <div className="border-t border-neutral-100 bg-neutral-50 p-4 animate-in slide-in-from-top-2 duration-200 rounded-b-xl">
+        <div className="border-t border-neutral-100 bg-neutral-50/60 p-4 rounded-b-2xl">
           <div className="flex justify-end mb-3">
-             <button 
-               onClick={handleReset} 
-               className="text-xs font-medium text-neutral-500 hover:text-red-500 flex items-center gap-1.5 transition-colors px-2 py-1 rounded-md hover:bg-red-50"
-             >
-               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                 <path d="M3 3v5h5" />
-               </svg>
-               Ripristina default
-             </button>
+            <button
+              onClick={handleReset}
+              className="text-xs font-medium text-neutral-500 hover:text-red-500 flex items-center gap-1.5 transition-colors px-2 py-1 rounded-md hover:bg-red-50"
+            >
+              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              Ripristina
+            </button>
           </div>
           <EditorToolbar
             value={settings}
@@ -408,4 +535,25 @@ export function PreviewCard({ fontId, fontName, fontCssFamily, text, premium, su
       )}
     </div>
   );
+}
+
+// Hook: wait for a font family to be actually rendered-ready in the browser.
+function useFontFaceReady(family: string | null): boolean {
+  const [ready, setReady] = React.useState(false);
+  React.useEffect(() => {
+    if (!family) { setReady(false); return; }
+    let cancelled = false;
+    type DocFonts = Document & {
+      fonts?: { load: (f: string) => Promise<FontFace[]>; ready: Promise<void> };
+    };
+    const doc = document as DocFonts;
+    const mark = () => { if (!cancelled) setReady(true); };
+    if (doc.fonts?.load) {
+      doc.fonts.load(`16px "${family}"`).then(mark).catch(mark);
+    } else {
+      mark();
+    }
+    return () => { cancelled = true; };
+  }, [family]);
+  return ready;
 }
