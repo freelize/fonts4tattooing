@@ -50,25 +50,12 @@ function injectFontFace(name: string, file: string) {
 export function useLazyFont(font: LoadableFont | null): void {
   useEffect(() => {
     if (!font) return;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        injectFontFace(font.name, font.file);
-        if (typeof FontFace !== "undefined") {
-          const face = new FontFace(font.name, `url(${font.file})`, { display: "swap" });
-          await face.load();
-          if (!cancelled) {
-            type DocFonts = Document & { fonts?: { add: (f: FontFace) => void } };
-            (document as DocFonts).fonts?.add(face);
-          }
-        }
-      } catch {
-        // swallow font-specific load errors
-      }
-    })();
-
-    return () => { cancelled = true; };
+    // Single source of truth: inject a CSS @font-face rule with
+    // font-display:swap. The browser will fetch the file lazily when
+    // a node uses that family. We deliberately avoid creating a
+    // second FontFace via the API: it caused duplicate downloads on
+    // some mobile browsers and raced against document.fonts.load.
+    injectFontFace(font.name, font.file);
   }, [font?.name, font?.file]);
 }
 

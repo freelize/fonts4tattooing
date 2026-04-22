@@ -548,12 +548,19 @@ function useFontFaceReady(family: string | null): boolean {
     };
     const doc = document as DocFonts;
     const mark = () => { if (!cancelled) setReady(true); };
+    // Hard fallback: even if document.fonts.load never resolves (some
+    // mobile browsers under poor network), unblock after 2.5s so the
+    // browser's font-display:swap can do the job with a fallback face.
+    const timeoutId = window.setTimeout(mark, 2500);
     if (doc.fonts?.load) {
       doc.fonts.load(`16px "${family}"`).then(mark).catch(mark);
     } else {
       mark();
     }
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, [family]);
   return ready;
 }
