@@ -259,6 +259,9 @@ export function PreviewCard({
         premium ? "opacity-95" : ""
       }`}
     >
+      {/* When the editor is open, pin header + preview + actions so they
+          stay visible while the effects panel below scrolls under them. */}
+      <div className={toolsOpen ? "sticky top-0 z-10 bg-white rounded-t-2xl" : ""}>
       {/* Header */}
       <div className="px-4 py-3 border-b border-neutral-100 bg-gradient-to-b from-neutral-50 to-white flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
@@ -503,6 +506,7 @@ export function PreviewCard({
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
         </button>
+      </div>
       </div>
 
       {toolsOpen && (
