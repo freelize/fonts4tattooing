@@ -68,3 +68,54 @@ export function useFontLoader(fonts: LoadableFont[]) {
     fonts.forEach((f) => injectFontFace(f.name, f.file));
   }, [fonts.map((f) => `${f.name}|${f.file}`).join("|")]);
 }
+
+/** Avoid warming thousands of files when the grid shows "tutti". */
+const MAX_WARMUP_FAMILIES = 72;
+
+type DocWithFontsLoad = Document & {
+  fonts?: { load: (desc: string) => Promise<FontFace[]> };
+};
+
+/**
+ * Compromise between global preload (bb34648) and pure lazy cards: register
+ * @font-face for the current page slice and kick document.fonts.load for the
+ * usual preview styles so scroll/repaint hits warmed faces and FOUT drops.
+ */
+export function usePaginatedFontWarmup(
+  fonts: LoadableFont[],
+  previewSizePx: number
+): void {
+  const serialized = fonts.map((f) => `${f.name}\0${f.file}`).join("\x1e");
+
+  useEffect(() => {
+    if (typeof document === "undefined" || !fonts.length) return;
+
+    const capped =
+      fonts.length > MAX_WARMUP_FAMILIES
+        ? fonts.slice(0, MAX_WARMUP_FAMILIES)
+        : fonts;
+
+    const byName = new Map<string, LoadableFont>();
+    for (const f of capped) {
+      if (!byName.has(f.name)) byName.set(f.name, f);
+    }
+    const list = Array.from(byName.values());
+    list.forEach((f) => injectFontFace(f.name, f.file));
+
+    const doc = document as DocWithFontsLoad;
+    if (!doc.fonts?.load) return;
+
+    const px = Math.max(1, Math.round(previewSizePx));
+    const loads: Array<Promise<FontFace[]>> = [];
+    for (const f of list) {
+      const esc = f.name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      const fam = `"${esc}"`;
+      loads.push(doc.fonts.load(`normal 400 ${px}px ${fam}`));
+      loads.push(doc.fonts.load(`italic 400 ${px}px ${fam}`));
+      loads.push(doc.fonts.load(`normal 700 ${px}px ${fam}`));
+      loads.push(doc.fonts.load(`italic 700 ${px}px ${fam}`));
+    }
+    void Promise.allSettled(loads);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `serialized` fingerprints `fonts`
+  }, [serialized, previewSizePx]);
+}

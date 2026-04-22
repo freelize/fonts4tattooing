@@ -3,6 +3,7 @@
 import React from "react";
 import Script from "next/script";
 import { PreviewCard } from "@/components/PreviewCard";
+import { usePaginatedFontWarmup } from "@/hooks/useFontLoader";
 
 async function fetchFonts() {
   const res = await fetch("/api/fonts");
@@ -220,6 +221,15 @@ export default function Home() {
       totalItems
     };
   }, [fonts, selectedCategory, onlyFavorites, favorites, itemsPerPage, currentPage]);
+
+  const fontsToWarm = React.useMemo(
+    () =>
+      isLoading
+        ? []
+        : paginatedFonts.map((f) => ({ name: f.name, file: f.file })),
+    [isLoading, paginatedFonts]
+  );
+  usePaginatedFontWarmup(fontsToWarm, baseFontSizePx);
 
   // Gap dinamico: su mobile, se ci sono più colonne, riduci lo spazio
   const gridGapClass = columns > 1 ? "gap-1 md:gap-6" : "gap-6";
