@@ -116,6 +116,23 @@ export function PreviewCard({
     }
   }, [defaultColor, settings.color]);
 
+  // When the user opens the editor on mobile, bring the card's top to the
+  // viewport top so header + preview + action bar are all visible; the
+  // editor panel below has its own internal scroll (overscroll-contain).
+  // This keeps the preview "locked" in view while the user plays with
+  // shadows / glow / outline without needing position:sticky tricks that
+  // don't hold on mobile Safari inside CSS Grid + overflow:hidden.
+  React.useEffect(() => {
+    if (!toolsOpen) return;
+    if (typeof window === "undefined") return;
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+    if (!isMobile) return;
+    const t = window.setTimeout(() => {
+      cardRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [toolsOpen]);
+
   const onDownload = async () => {
     if (premium) return;
     if (!previewRef.current) return;
@@ -259,9 +276,6 @@ export function PreviewCard({
         premium ? "opacity-95" : ""
       }`}
     >
-      {/* When the editor is open, pin header + preview + actions so they
-          stay visible while the effects panel below scrolls under them. */}
-      <div className={toolsOpen ? "sticky top-0 z-10 bg-white rounded-t-2xl" : ""}>
       {/* Header */}
       <div className="px-4 py-3 border-b border-neutral-100 bg-gradient-to-b from-neutral-50 to-white flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
@@ -507,10 +521,9 @@ export function PreviewCard({
           </svg>
         </button>
       </div>
-      </div>
 
       {toolsOpen && (
-        <div className="border-t border-neutral-100 bg-neutral-50/60 p-4 rounded-b-2xl">
+        <div className="border-t border-neutral-100 bg-neutral-50/60 p-4 rounded-b-2xl md:max-h-none md:overflow-visible max-h-[55vh] overflow-y-auto overscroll-contain">
           <div className="flex justify-end mb-3">
             <button
               onClick={handleReset}
