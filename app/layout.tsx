@@ -150,11 +150,15 @@ export default function RootLayout({
                 {/* Logo mark */}
                 <div className="relative">
                   <div className="absolute -inset-3 rounded-full bg-gradient-to-br from-neutral-200/60 to-neutral-100/0 blur-md group-hover:from-neutral-300/70 transition-all duration-500" />
-                  <div className="relative h-14 w-14 rounded-full bg-neutral-900 text-white flex items-center justify-center shadow-lg shadow-neutral-900/10 ring-1 ring-white/10 group-hover:scale-105 transition-transform duration-300">
-                    <span className="font-serif italic text-2xl leading-none">F</span>
-                    <span className="absolute -right-1 -bottom-1 h-5 w-5 rounded-full bg-white border border-neutral-900 flex items-center justify-center text-[10px] font-black text-neutral-900">
-                      4T
-                    </span>
+                  <div className="relative h-14 w-14 rounded-full bg-white flex items-center justify-center shadow-lg shadow-neutral-900/10 ring-1 ring-neutral-900/10 overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                    <img
+                      src="/favicon.svg"
+                      alt="Font 4 Tattoo"
+                      width={56}
+                      height={56}
+                      className="h-12 w-12 object-contain"
+                      decoding="async"
+                    />
                   </div>
                 </div>
 

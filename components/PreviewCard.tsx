@@ -89,7 +89,7 @@ export function PreviewCard({
           }
         }
       },
-      { rootMargin: "300px 0px", threshold: 0.01 }
+      { rootMargin: "520px 0px", threshold: 0.01 }
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -537,26 +537,56 @@ export function PreviewCard({
   );
 }
 
-// Hook: wait for a font family to be actually rendered-ready in the browser.
+// Wait for the real webfont before swapping skeleton → text (avoids FOUT).
 function useFontFaceReady(family: string | null): boolean {
   const [ready, setReady] = React.useState(false);
   React.useEffect(() => {
-    if (!family) { setReady(false); return; }
+    if (!family) {
+      setReady(false);
+      return;
+    }
     let cancelled = false;
     type DocFonts = Document & {
-      fonts?: { load: (f: string) => Promise<FontFace[]>; ready: Promise<void> };
+      fonts?: {
+        load: (f: string) => Promise<FontFace[]>;
+        check: (f: string) => boolean;
+      };
     };
     const doc = document as DocFonts;
-    const mark = () => { if (!cancelled) setReady(true); };
-    // Hard fallback: even if document.fonts.load never resolves (some
-    // mobile browsers under poor network), unblock after 2.5s so the
-    // browser's font-display:swap can do the job with a fallback face.
-    const timeoutId = window.setTimeout(mark, 2500);
-    if (doc.fonts?.load) {
-      doc.fonts.load(`16px "${family}"`).then(mark).catch(mark);
-    } else {
-      mark();
-    }
+    const spec = `16px "${family}"`;
+
+    const mark = () => {
+      if (!cancelled) setReady(true);
+    };
+
+    const waitUntilUsable = async () => {
+      if (!doc.fonts?.load) {
+        mark();
+        return;
+      }
+      try {
+        await doc.fonts.load(spec);
+      } catch {
+        /* still try check / polling below */
+      }
+      if (cancelled) return;
+      if (doc.fonts.check?.(spec)) {
+        mark();
+        return;
+      }
+      for (let i = 0; i < 120 && !cancelled; i++) {
+        await new Promise((r) => window.setTimeout(r, 50));
+        if (doc.fonts.check?.(spec)) {
+          mark();
+          return;
+        }
+      }
+      if (!cancelled) mark();
+    };
+
+    void waitUntilUsable();
+    const timeoutId = window.setTimeout(mark, 45_000);
+
     return () => {
       cancelled = true;
       window.clearTimeout(timeoutId);
